@@ -18,8 +18,13 @@
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     
+    <!-- Cache busting meta tags -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
     <!-- Custom CSS -->
-    <link href="{{ url_for('static', filename='style.css') }}?v=5" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}?v={{ range(1000, 9999) | random }}" rel="stylesheet">
     
     <!-- Feather Icons -->
     <script src="https://unpkg.com/feather-icons"></script>
@@ -50,7 +55,7 @@
                             <i data-feather="settings" class="me-1"></i>
                         </a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="#" onclick="manualScrape()">Refresh Data</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="refreshData()">Refresh Data</a></li>
                             <li><a class="dropdown-item" href="#" onclick="testNotification()">Test Alert</a></li>
                         </ul>
                     </li>
@@ -88,7 +93,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <!-- App JavaScript -->
-    <script src="{{ url_for('static', filename='app.js') }}?v=4"></script>
+    <script src="{{ url_for('static', filename='app.js') }}?v={{ range(1000, 9999) | random }}"></script>
     
     <!-- Initialize Feather Icons -->
     <script>feather.replace()</script>

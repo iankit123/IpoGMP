@@ -418,7 +418,7 @@ function updateSortIndicators(activeColumn, direction) {
 function refreshData() {
     document.getElementById('loadingOverlay').classList.remove('d-none');
     
-    fetch('/api/scrape', {
+    fetch('/admin/scrape', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -427,7 +427,8 @@ function refreshData() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            location.reload();
+            // Force reload with cache busting
+            window.location.href = window.location.href + '?t=' + new Date().getTime();
         } else {
             alert('Failed to refresh data. Please try again.');
         }
@@ -451,6 +452,66 @@ setInterval(() => {
         .catch(error => console.error('Error fetching last updated time:', error));
 }, 60000);
 
+// Default sort IPOs by days left (asc) then GMP (desc)
+function sortIposByDefault() {
+    const tableRows = Array.from(document.querySelectorAll('#ipoTableBody tr'));
+    const mobileCards = Array.from(document.querySelectorAll('.ipo-card'));
+    
+    function sortItems(items, isMobile = false) {
+        return items.sort((a, b) => {
+            // Get days left for both items
+            let aDaysLeft = 999;
+            let bDaysLeft = 999;
+            
+            if (isMobile) {
+                const aDaysText = a.querySelector('.text-danger, .text-warning, .text-info');
+                const bDaysText = b.querySelector('.text-danger, .text-warning, .text-info');
+                
+                if (aDaysText && aDaysText.textContent.includes('Day')) {
+                    aDaysLeft = aDaysText.textContent.includes('Last Day') ? 0 : parseInt(aDaysText.textContent.match(/\d+/)?.[0] || '999');
+                }
+                if (bDaysText && bDaysText.textContent.includes('Day')) {
+                    bDaysLeft = bDaysText.textContent.includes('Last Day') ? 0 : parseInt(bDaysText.textContent.match(/\d+/)?.[0] || '999');
+                }
+            } else {
+                const aDaysText = a.querySelector('.badge.bg-danger, .badge.bg-warning, .badge.bg-info');
+                const bDaysText = b.querySelector('.badge.bg-danger, .badge.bg-warning, .badge.bg-info');
+                
+                if (aDaysText && aDaysText.textContent.includes('Day')) {
+                    aDaysLeft = aDaysText.textContent.includes('Last Day') ? 0 : parseInt(aDaysText.textContent.match(/\d+/)?.[0] || '999');
+                }
+                if (bDaysText && bDaysText.textContent.includes('Day')) {
+                    bDaysLeft = bDaysText.textContent.includes('Last Day') ? 0 : parseInt(bDaysText.textContent.match(/\d+/)?.[0] || '999');
+                }
+            }
+            
+            // Primary sort: days left (ascending)
+            if (aDaysLeft !== bDaysLeft) {
+                return aDaysLeft - bDaysLeft;
+            }
+            
+            // Secondary sort: GMP percentage (descending)
+            const aGmp = parseFloat(a.dataset.gmp) || 0;
+            const bGmp = parseFloat(b.dataset.gmp) || 0;
+            return bGmp - aGmp;
+        });
+    }
+    
+    // Sort and reorder table rows
+    const sortedTableRows = sortItems(tableRows, false);
+    const tableBody = document.querySelector('#ipoTableBody');
+    if (tableBody) {
+        sortedTableRows.forEach(row => tableBody.appendChild(row));
+    }
+    
+    // Sort and reorder mobile cards
+    const sortedMobileCards = sortItems(mobileCards, true);
+    const mobileContainer = document.querySelector('#ipoCardsList');
+    if (mobileContainer) {
+        sortedMobileCards.forEach(card => mobileContainer.appendChild(card));
+    }
+}
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     fetch('/api/last-updated')
@@ -464,8 +525,33 @@ document.addEventListener('DOMContentLoaded', function() {
     
     updateStats();
     
+    // Apply default sorting
+    sortIposByDefault();
+    
     // Handle window resize to update stats for correct view
     window.addEventListener('resize', updateStats);
 });
+
+// Test notification function
+function testNotification() {
+    fetch('/admin/test-notification', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+        } else {
+            alert('Failed to send test notification.');
+        }
+    })
+    .catch(error => {
+        console.error('Error sending test notification:', error);
+        alert('Error sending test notification.');
+    });
+}
 </script>
 {% endblock %}
