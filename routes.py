@@ -14,11 +14,17 @@ def index():
     """Main dashboard page"""
     try:
         from datetime import datetime
-        # Get all active IPOs, ordered by GMP percentage (descending)
-        ipos = IPO.query.filter_by(is_active=True).order_by(IPO.gmp_percentage.desc().nullslast()).all()
-        logger.info(f"Dashboard: Found {len(ipos)} active IPOs")
+        today = datetime.now().date()
+        
+        # Get only currently open IPOs (close_date >= today or close_date is NULL), ordered by GMP percentage (descending)
+        ipos = IPO.query.filter(
+            IPO.is_active == True,
+            db.or_(IPO.close_date >= today, IPO.close_date == None)
+        ).order_by(IPO.gmp_percentage.desc().nullslast()).all()
+        
+        logger.info(f"Dashboard: Found {len(ipos)} currently open IPOs")
         for i, ipo in enumerate(ipos[:3]):  # Log first 3 IPOs for debugging
-            logger.info(f"IPO {i+1}: {ipo.name} - GMP: {ipo.gmp_percentage}% - Active: {ipo.is_active}")
+            logger.info(f"IPO {i+1}: {ipo.name} - GMP: {ipo.gmp_percentage}% - Open: {ipo.open_date} - Close: {ipo.close_date}")
         return render_template('index.html', ipos=ipos, today=datetime.now())
     except Exception as e:
         logger.error(f"Error loading dashboard: {e}")
@@ -30,8 +36,16 @@ def index():
 def api_ipos():
     """API endpoint to get IPO data as JSON"""
     try:
-        ipos = IPO.query.filter_by(is_active=True).order_by(IPO.gmp_percentage.desc().nullslast()).all()
-        logger.info(f"API: Found {len(ipos)} active IPOs")
+        from datetime import datetime
+        today = datetime.now().date()
+        
+        # Get only currently open IPOs (close_date >= today or close_date is NULL)
+        ipos = IPO.query.filter(
+            IPO.is_active == True,
+            db.or_(IPO.close_date >= today, IPO.close_date == None)
+        ).order_by(IPO.gmp_percentage.desc().nullslast()).all()
+        
+        logger.info(f"API: Found {len(ipos)} currently open IPOs")
         return jsonify([ipo.to_dict() for ipo in ipos])
     except Exception as e:
         logger.error(f"Error in API endpoint: {e}")

@@ -74,6 +74,9 @@ class IPOScraper:
                 'subscription_status': None
             }
             
+            # Debug logging
+            logger.debug(f"Parsing IPO: {cell_texts[0]} with {len(cell_texts)} cells: {cell_texts}")
+            
             # Try to extract GMP information from various cells
             for i, text in enumerate(cell_texts[1:], 1):
                 # Look for GMP value (₹ symbol or numbers with %)
@@ -103,14 +106,30 @@ class IPOScraper:
                         except ValueError:
                             pass
                 
-                # Look for dates
-                date_patterns = [
+                # Look for date ranges like "10-12 Sept", "2-4 Sept", "16-18 Sept"
+                date_range_pattern = r'(\d{1,2})-(\d{1,2})\s+(\w+)'
+                date_match = re.search(date_range_pattern, text)
+                
+                if date_match:
+                    start_day = int(date_match.group(1))
+                    end_day = int(date_match.group(2))
+                    month_name = date_match.group(3)
+                    
+                    # Parse the dates
+                    open_date, close_date = self._parse_date_range(start_day, end_day, month_name)
+                    if open_date and close_date:
+                        ipo_info['open_date'] = open_date
+                        ipo_info['close_date'] = close_date
+                        logger.debug(f"Found date range for {ipo_info['name']}: {open_date} to {close_date}")
+                
+                # Also look for single dates
+                single_date_patterns = [
                     r'\d{1,2}[/-]\d{1,2}[/-]\d{4}',
                     r'\d{1,2}\s+\w+\s+\d{4}',
                     r'\w+\s+\d{1,2},?\s+\d{4}'
                 ]
                 
-                for pattern in date_patterns:
+                for pattern in single_date_patterns:
                     if re.search(pattern, text):
                         parsed_date = self._parse_date(text)
                         if parsed_date:
@@ -128,6 +147,36 @@ class IPOScraper:
         except Exception as e:
             logger.error(f"Error parsing IPO row: {e}")
             return None
+    
+    def _parse_date_range(self, start_day, end_day, month_name):
+        """Parse date range like '10-12 Sept' into open and close dates"""
+        try:
+            from datetime import datetime
+            current_year = datetime.now().year
+            
+            # Month name mapping
+            month_mapping = {
+                'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6,
+                'Jul': 7, 'Aug': 8, 'Sep': 9, 'Sept': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12,
+                'January': 1, 'February': 2, 'March': 3, 'April': 4, 'May': 5, 'June': 6,
+                'July': 7, 'August': 8, 'September': 9, 'October': 10, 'November': 11, 'December': 12
+            }
+            
+            month_num = month_mapping.get(month_name, month_mapping.get(month_name[:3]))
+            if not month_num:
+                return None, None
+            
+            try:
+                open_date = datetime(current_year, month_num, start_day)
+                close_date = datetime(current_year, month_num, end_day)
+                return open_date, close_date
+            except ValueError:
+                # Handle invalid dates
+                return None, None
+            
+        except Exception as e:
+            logger.debug(f"Error parsing date range {start_day}-{end_day} {month_name}: {e}")
+            return None, None
     
     def _parse_date(self, date_str):
         """Parse date string into datetime object"""
