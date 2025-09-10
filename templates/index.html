@@ -1,61 +1,61 @@
 {% extends "base.html" %}
 
 {% block content %}
-<!-- Status Cards -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card">
-            <div class="card-body text-center">
-                <i data-feather="trending-up" class="text-success mb-2"></i>
-                <h5 class="card-title">Active IPOs</h5>
-                <h3 class="text-success" id="activeIpoCount">{{ ipos|length }}</h3>
+<!-- Mobile-First Status Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card border-0 bg-success bg-opacity-10 h-100">
+            <div class="card-body text-center p-3">
+                <i data-feather="trending-up" class="text-success mb-2" style="width: 20px; height: 20px;"></i>
+                <div class="fw-bold text-success fs-4 mb-1" id="activeIpoCount">{{ ipos|length }}</div>
+                <small class="text-dark-emphasis">Active IPOs</small>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card">
-            <div class="card-body text-center">
-                <i data-feather="percent" class="text-info mb-2"></i>
-                <h5 class="card-title">High GMP</h5>
-                <h3 class="text-info" id="highGmpCount">
+    <div class="col-6 col-md-3">
+        <div class="card border-0 bg-info bg-opacity-10 h-100">
+            <div class="card-body text-center p-3">
+                <i data-feather="percent" class="text-info mb-2" style="width: 20px; height: 20px;"></i>
+                <div class="fw-bold text-info fs-4 mb-1" id="highGmpCount">
                     {{ ipos|selectattr('gmp_percentage')|selectattr('gmp_percentage', '>', 50)|list|length }}
-                </h3>
+                </div>
+                <small class="text-dark-emphasis">High GMP</small>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card">
-            <div class="card-body text-center">
-                <i data-feather="clock" class="text-warning mb-2"></i>
-                <h5 class="card-title">Closing Soon</h5>
-                <h3 class="text-warning" id="closingSoonCount">0</h3>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 bg-warning bg-opacity-10 h-100">
+            <div class="card-body text-center p-3">
+                <i data-feather="clock" class="text-warning mb-2" style="width: 20px; height: 20px;"></i>
+                <div class="fw-bold text-warning fs-4 mb-1" id="closingSoonCount">0</div>
+                <small class="text-dark-emphasis">Closing Soon</small>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card">
-            <div class="card-body text-center">
-                <i data-feather="bell" class="text-primary mb-2"></i>
-                <h5 class="card-title">Notifications</h5>
-                <h3 class="text-primary" id="notificationStatus">
-                    <span class="badge bg-secondary">Disabled</span>
-                </h3>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 bg-primary bg-opacity-10 h-100">
+            <div class="card-body text-center p-3">
+                <i data-feather="bell" class="text-primary mb-2" style="width: 20px; height: 20px;"></i>
+                <div class="fw-bold text-primary fs-4 mb-1" id="notificationStatus">
+                    <span class="badge bg-secondary rounded-pill">OFF</span>
+                </div>
+                <small class="text-dark-emphasis">Alerts</small>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Filters and Search -->
-<div class="row mb-4">
-    <div class="col-md-6">
+<!-- Mobile-Optimized Search and Filters -->
+<div class="row g-2 mb-4">
+    <div class="col-12 col-md-6">
         <div class="input-group">
-            <span class="input-group-text">
-                <i data-feather="search"></i>
+            <span class="input-group-text bg-white border-end-0">
+                <i data-feather="search" style="width: 16px; height: 16px;"></i>
             </span>
-            <input type="text" class="form-control" id="searchInput" placeholder="Search IPO name...">
+            <input type="text" class="form-control border-start-0 ps-0" id="searchInput" placeholder="Search IPO...">
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-6 col-md-3">
         <select class="form-select" id="gmpFilter">
             <option value="">All GMPs</option>
             <option value="high">High (>50%)</option>
@@ -63,73 +63,50 @@
             <option value="low">Low (<20%)</option>
         </select>
     </div>
-    <div class="col-md-3">
-        <button class="btn btn-outline-primary w-100" onclick="refreshData()">
-            <i data-feather="refresh-cw" class="me-2"></i>
-            Refresh Data
+    <div class="col-6 col-md-3">
+        <button class="btn btn-primary w-100 rounded-pill" onclick="refreshData()">
+            <i data-feather="refresh-cw" class="me-2" style="width: 16px; height: 16px;"></i>
+            <span class="d-none d-md-inline">Refresh </span>Data
         </button>
     </div>
 </div>
 
-<!-- IPO Data Table -->
-<div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">
-            <i data-feather="list" class="me-2"></i>
-            IPO Grey Market Premium
-        </h5>
-        <small class="text-muted">Auto-refreshes every 5 minutes</small>
+<!-- IPO Data Section -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-0 py-3">
+        <div class="d-flex justify-content-between align-items-center">
+            <h6 class="mb-0 fw-semibold text-dark">
+                <i data-feather="list" class="me-2" style="width: 16px; height: 16px;"></i>
+                IPO Grey Market Premium
+            </h6>
+            <small class="text-muted">
+                <i data-feather="clock" class="me-1" style="width: 12px; height: 12px;"></i>
+                Auto-refresh
+            </small>
+        </div>
     </div>
-    <div class="card-body">
+    <div class="card-body p-0">
         {% if ipos %}
-        <div class="table-responsive">
-            <table class="table table-hover" id="ipoTable">
-                <thead>
-                    <tr>
-                        <th onclick="sortTable(0)">
-                            IPO Name
-                            <i data-feather="chevrons-up-down" class="ms-1"></i>
-                        </th>
-                        <th onclick="sortTable(1)">
-                            Open Date
-                            <i data-feather="chevrons-up-down" class="ms-1"></i>
-                        </th>
-                        <th onclick="sortTable(2)">
-                            Close Date
-                            <i data-feather="chevrons-up-down" class="ms-1"></i>
-                        </th>
-                        <th onclick="sortTable(3)">
-                            Issue Price
-                            <i data-feather="chevrons-up-down" class="ms-1"></i>
-                        </th>
-                        <th onclick="sortTable(4)">
-                            GMP Value
-                            <i data-feather="chevrons-up-down" class="ms-1"></i>
-                        </th>
-                        <th onclick="sortTable(5)">
-                            GMP %
-                            <i data-feather="chevrons-up-down" class="ms-1"></i>
-                        </th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody id="ipoTableBody">
-                    {% for ipo in ipos %}
-                    <tr data-ipo-name="{{ ipo.name|lower }}" data-gmp="{{ ipo.gmp_percentage or 0 }}">
-                        <td>
-                            <strong>{{ ipo.name }}</strong>
-                            {% if ipo.subscription_status %}
-                            <br><small class="text-muted">{{ ipo.subscription_status }}</small>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if ipo.open_date %}
-                                {{ ipo.open_date.strftime('%d %b %Y') }}
+        <!-- Mobile-First IPO Cards (Visible on small screens) -->
+        <div class="d-md-none" id="ipoCardsList">
+            {% for ipo in ipos %}
+            <div class="border-bottom p-3 ipo-card" data-ipo-name="{{ ipo.name|lower }}" data-gmp="{{ ipo.gmp_percentage or 0 }}">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1 me-3">
+                        <h6 class="mb-1 fw-semibold text-dark">{{ ipo.name }}</h6>
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            {% if ipo.close_date and ipo.close_date.date() < today.date() %}
+                                <span class="badge bg-secondary rounded-pill">Closed</span>
+                            {% elif ipo.open_date and ipo.open_date.date() > today.date() %}
+                                <span class="badge bg-primary rounded-pill">Upcoming</span>
                             {% else %}
-                                <span class="text-muted">TBA</span>
+                                <span class="badge bg-success rounded-pill">Open</span>
                             {% endif %}
-                        </td>
-                        <td>
+                            {% if ipo.issue_price %}
+                                <small class="text-muted">₹{{ "%.0f"|format(ipo.issue_price) }}</small>
+                            {% endif %}
+                        </div>
+                        <div class="small text-muted">
                             {% if ipo.open_date and ipo.close_date %}
                                 {% if ipo.open_date.day != ipo.close_date.day %}
                                     {{ ipo.open_date.day }}-{{ ipo.close_date.day }} {{ ipo.close_date.strftime('%b') }}
@@ -138,52 +115,132 @@
                                 {% endif %}
                                 {% set days_left = (ipo.close_date.date() - today.date()).days %}
                                 {% if days_left == 0 %}
-                                    <br><small class="badge bg-danger">Last Day!</small>
+                                    • <span class="text-danger fw-medium">Last Day!</span>
                                 {% elif days_left == 1 %}
-                                    <br><small class="badge bg-warning">1 Day Left</small>
+                                    • <span class="text-warning fw-medium">1 Day Left</span>
                                 {% elif days_left > 1 and days_left <= 3 %}
-                                    <br><small class="badge bg-info">{{ days_left }} Days Left</small>
+                                    • <span class="text-info fw-medium">{{ days_left }} Days Left</span>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="text-end">
+                        {% if ipo.gmp_percentage %}
+                            {% if ipo.gmp_percentage > 50 %}
+                                <div class="badge bg-success fs-6 px-2 py-1">+{{ "%.1f"|format(ipo.gmp_percentage) }}%</div>
+                            {% elif ipo.gmp_percentage > 20 %}
+                                <div class="badge bg-info fs-6 px-2 py-1">+{{ "%.1f"|format(ipo.gmp_percentage) }}%</div>
+                            {% elif ipo.gmp_percentage > 0 %}
+                                <div class="badge bg-secondary fs-6 px-2 py-1">+{{ "%.1f"|format(ipo.gmp_percentage) }}%</div>
+                            {% else %}
+                                <div class="badge bg-danger fs-6 px-2 py-1">{{ "%.1f"|format(ipo.gmp_percentage) }}%</div>
+                            {% endif %}
+                        {% else %}
+                            <small class="text-muted">N/A</small>
+                        {% endif %}
+                        {% if ipo.gmp_value %}
+                            <div class="small text-muted mt-1">₹{{ "%.0f"|format(ipo.gmp_value) }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Desktop Table (Hidden on small screens) -->
+        <div class="d-none d-md-block table-responsive">
+            <table class="table table-hover mb-0" id="ipoTable">
+                <thead class="table-light">
+                    <tr>
+                        <th class="border-0 fw-semibold text-dark py-3" onclick="sortTable(0)">
+                            IPO Name
+                            <i data-feather="chevrons-up-down" class="ms-1" style="width: 14px; height: 14px;"></i>
+                        </th>
+                        <th class="border-0 fw-semibold text-dark py-3" onclick="sortTable(1)">
+                            Dates
+                            <i data-feather="chevrons-up-down" class="ms-1" style="width: 14px; height: 14px;"></i>
+                        </th>
+                        <th class="border-0 fw-semibold text-dark py-3" onclick="sortTable(2)">
+                            Issue Price
+                            <i data-feather="chevrons-up-down" class="ms-1" style="width: 14px; height: 14px;"></i>
+                        </th>
+                        <th class="border-0 fw-semibold text-dark py-3" onclick="sortTable(3)">
+                            GMP Value
+                            <i data-feather="chevrons-up-down" class="ms-1" style="width: 14px; height: 14px;"></i>
+                        </th>
+                        <th class="border-0 fw-semibold text-dark py-3" onclick="sortTable(4)">
+                            GMP %
+                            <i data-feather="chevrons-up-down" class="ms-1" style="width: 14px; height: 14px;"></i>
+                        </th>
+                        <th class="border-0 fw-semibold text-dark py-3">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="ipoTableBody">
+                    {% for ipo in ipos %}
+                    <tr data-ipo-name="{{ ipo.name|lower }}" data-gmp="{{ ipo.gmp_percentage or 0 }}" class="border-light">
+                        <td class="py-3">
+                            <div class="fw-semibold text-dark">{{ ipo.name }}</div>
+                            {% if ipo.subscription_status %}
+                            <small class="text-muted">{{ ipo.subscription_status }}</small>
+                            {% endif %}
+                        </td>
+                        <td class="py-3">
+                            {% if ipo.open_date and ipo.close_date %}
+                                <div class="text-dark">
+                                    {% if ipo.open_date.day != ipo.close_date.day %}
+                                        {{ ipo.open_date.day }}-{{ ipo.close_date.day }} {{ ipo.close_date.strftime('%b') }}
+                                    {% else %}
+                                        {{ ipo.open_date.day }} {{ ipo.open_date.strftime('%b') }}
+                                    {% endif %}
+                                </div>
+                                {% set days_left = (ipo.close_date.date() - today.date()).days %}
+                                {% if days_left == 0 %}
+                                    <small class="badge bg-danger rounded-pill">Last Day!</small>
+                                {% elif days_left == 1 %}
+                                    <small class="badge bg-warning rounded-pill">1 Day Left</small>
+                                {% elif days_left > 1 and days_left <= 3 %}
+                                    <small class="badge bg-info rounded-pill">{{ days_left }} Days Left</small>
                                 {% endif %}
                             {% else %}
                                 <span class="text-muted">TBA</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td class="py-3">
                             {% if ipo.issue_price %}
-                                ₹{{ "%.0f"|format(ipo.issue_price) }}
+                                <span class="fw-medium text-dark">₹{{ "%.0f"|format(ipo.issue_price) }}</span>
                             {% else %}
                                 <span class="text-muted">TBA</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td class="py-3">
                             {% if ipo.gmp_value %}
-                                ₹{{ "%.0f"|format(ipo.gmp_value) }}
+                                <span class="fw-medium text-dark">₹{{ "%.0f"|format(ipo.gmp_value) }}</span>
                             {% else %}
                                 <span class="text-muted">N/A</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td class="py-3">
                             {% if ipo.gmp_percentage %}
                                 {% if ipo.gmp_percentage > 50 %}
-                                    <span class="badge bg-success">+{{ "%.1f"|format(ipo.gmp_percentage) }}%</span>
+                                    <span class="badge bg-success rounded-pill">+{{ "%.1f"|format(ipo.gmp_percentage) }}%</span>
                                 {% elif ipo.gmp_percentage > 20 %}
-                                    <span class="badge bg-info">+{{ "%.1f"|format(ipo.gmp_percentage) }}%</span>
+                                    <span class="badge bg-info rounded-pill">+{{ "%.1f"|format(ipo.gmp_percentage) }}%</span>
                                 {% elif ipo.gmp_percentage > 0 %}
-                                    <span class="badge bg-secondary">+{{ "%.1f"|format(ipo.gmp_percentage) }}%</span>
+                                    <span class="badge bg-secondary rounded-pill">+{{ "%.1f"|format(ipo.gmp_percentage) }}%</span>
                                 {% else %}
-                                    <span class="badge bg-danger">{{ "%.1f"|format(ipo.gmp_percentage) }}%</span>
+                                    <span class="badge bg-danger rounded-pill">{{ "%.1f"|format(ipo.gmp_percentage) }}%</span>
                                 {% endif %}
                             {% else %}
                                 <span class="text-muted">N/A</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td class="py-3">
                             {% if ipo.close_date and ipo.close_date.date() < today.date() %}
-                                <span class="badge bg-secondary">Closed</span>
+                                <span class="badge bg-secondary rounded-pill">Closed</span>
                             {% elif ipo.open_date and ipo.open_date.date() > today.date() %}
-                                <span class="badge bg-primary">Upcoming</span>
+                                <span class="badge bg-primary rounded-pill">Upcoming</span>
                             {% else %}
-                                <span class="badge bg-success">Open</span>
+                                <span class="badge bg-success rounded-pill">Open</span>
                             {% endif %}
                         </td>
                     </tr>
@@ -195,10 +252,10 @@
         <div class="text-center py-5">
             <i data-feather="inbox" class="text-muted mb-3" style="width: 48px; height: 48px;"></i>
             <h5 class="text-muted">No IPO Data Available</h5>
-            <p class="text-muted">IPO data will appear here once scraping is complete.</p>
-            <button class="btn btn-primary" onclick="manualScrape()">
-                <i data-feather="download" class="me-2"></i>
-                Trigger Data Scraping
+            <p class="text-muted mb-3">IPO data will appear here once scraping is complete.</p>
+            <button class="btn btn-primary rounded-pill px-4" onclick="manualScrape()">
+                <i data-feather="download" class="me-2" style="width: 16px; height: 16px;"></i>
+                Refresh Data
             </button>
         </div>
         {% endif %}
