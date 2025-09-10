@@ -1,4 +1,4 @@
-from flask import render_template, request, jsonify, redirect, url_for
+from flask import render_template, request, jsonify, redirect, url_for, make_response
 from app import app, db
 from models import IPO, PushSubscription
 from scraper import scrape_and_update
@@ -27,7 +27,13 @@ def index():
         logger.info(f"Dashboard: Found {len(ipos)} currently open IPOs")
         for i, ipo in enumerate(ipos[:3]):  # Log first 3 IPOs for debugging
             logger.info(f"IPO {i+1}: {ipo.name} - GMP: {ipo.gmp_percentage}% - Open: {ipo.open_date} - Close: {ipo.close_date}")
-        return render_template('index.html', ipos=ipos, today=datetime.now())
+        
+        # Create response with no-cache headers
+        response = make_response(render_template('index.html', ipos=ipos, today=datetime.now()))
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response
     except Exception as e:
         logger.error(f"Error loading dashboard: {e}")
         import traceback

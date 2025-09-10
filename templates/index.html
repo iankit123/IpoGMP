@@ -55,7 +55,7 @@
             <input type="text" class="form-control border-start-0 ps-0" id="searchInput" placeholder="Search IPO...">
         </div>
     </div>
-    <div class="col-6 col-md-3">
+    <div class="col-6 col-md-4">
         <select class="form-select" id="gmpFilter">
             <option value="">All GMPs</option>
             <option value="high">High (>50%)</option>
@@ -63,10 +63,16 @@
             <option value="low">Low (<20%)</option>
         </select>
     </div>
-    <div class="col-6 col-md-3">
+    <div class="col-3 col-md-2">
         <button class="btn btn-primary w-100 rounded-pill" onclick="refreshData()">
-            <i data-feather="refresh-cw" class="me-2" style="width: 16px; height: 16px;"></i>
-            <span class="d-none d-md-inline">Refresh </span>Data
+            <i data-feather="refresh-cw" class="me-1" style="width: 16px; height: 16px;"></i>
+            <span class="d-none d-md-inline">Data</span>
+        </button>
+    </div>
+    <div class="col-3 col-md-1">
+        <button class="btn btn-warning w-100 rounded-pill" onclick="forceRefresh()" title="Force refresh to clear cache">
+            <i data-feather="rotate-ccw" style="width: 16px; height: 16px;"></i>
+            <span class="d-none d-lg-inline">Force</span>
         </button>
     </div>
 </div>
@@ -531,6 +537,26 @@ document.addEventListener('DOMContentLoaded', function() {
     // Handle window resize to update stats for correct view
     window.addEventListener('resize', updateStats);
 });
+
+// Force refresh function to clear all caches
+function forceRefresh() {
+    // Clear service worker cache if available
+    if ('serviceWorker' in navigator && 'caches' in window) {
+        caches.keys().then(function(cacheNames) {
+            return Promise.all(
+                cacheNames.map(function(cacheName) {
+                    return caches.delete(cacheName);
+                })
+            );
+        }).then(function() {
+            // Force reload with cache busting
+            window.location.href = window.location.protocol + '//' + window.location.host + window.location.pathname + '?bust=' + Date.now();
+        });
+    } else {
+        // Fallback: just force reload with cache busting
+        window.location.href = window.location.protocol + '//' + window.location.host + window.location.pathname + '?bust=' + Date.now();
+    }
+}
 
 // Test notification function
 function testNotification() {
