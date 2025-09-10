@@ -2,44 +2,44 @@
 
 {% block content %}
 <!-- Mobile-First Status Cards -->
-<div class="row g-3 mb-4">
-    <div class="col-6 col-md-3">
+<div class="row g-2 mb-4">
+    <div class="col-3">
         <div class="card border-0 bg-success bg-opacity-10 h-100">
-            <div class="card-body text-center p-3">
-                <i data-feather="trending-up" class="text-success mb-2" style="width: 20px; height: 20px;"></i>
-                <div class="fw-bold text-success fs-4 mb-1" id="activeIpoCount">{{ ipos|length }}</div>
-                <small class="text-dark-emphasis">Active IPOs</small>
+            <div class="card-body text-center p-2">
+                <i data-feather="trending-up" class="text-success mb-1" style="width: 16px; height: 16px;"></i>
+                <div class="fw-bold text-success fs-5 mb-1" id="activeIpoCount">{{ ipos|length }}</div>
+                <small class="text-dark-emphasis" style="font-size: 0.7rem;">Active IPOs</small>
             </div>
         </div>
     </div>
-    <div class="col-6 col-md-3">
+    <div class="col-3">
         <div class="card border-0 bg-info bg-opacity-10 h-100">
-            <div class="card-body text-center p-3">
-                <i data-feather="percent" class="text-info mb-2" style="width: 20px; height: 20px;"></i>
-                <div class="fw-bold text-info fs-4 mb-1" id="highGmpCount">
+            <div class="card-body text-center p-2">
+                <i data-feather="percent" class="text-info mb-1" style="width: 16px; height: 16px;"></i>
+                <div class="fw-bold text-info fs-5 mb-1" id="highGmpCount">
                     {{ ipos|selectattr('gmp_percentage')|selectattr('gmp_percentage', '>', 50)|list|length }}
                 </div>
-                <small class="text-dark-emphasis">High GMP</small>
+                <small class="text-dark-emphasis" style="font-size: 0.7rem;">High GMP</small>
             </div>
         </div>
     </div>
-    <div class="col-6 col-md-3">
+    <div class="col-3">
         <div class="card border-0 bg-warning bg-opacity-10 h-100">
-            <div class="card-body text-center p-3">
-                <i data-feather="clock" class="text-warning mb-2" style="width: 20px; height: 20px;"></i>
-                <div class="fw-bold text-warning fs-4 mb-1" id="closingSoonCount">0</div>
-                <small class="text-dark-emphasis">Closing Soon</small>
+            <div class="card-body text-center p-2">
+                <i data-feather="clock" class="text-warning mb-1" style="width: 16px; height: 16px;"></i>
+                <div class="fw-bold text-warning fs-5 mb-1" id="closingSoonCount">0</div>
+                <small class="text-dark-emphasis" style="font-size: 0.7rem;">Closing Soon</small>
             </div>
         </div>
     </div>
-    <div class="col-6 col-md-3">
+    <div class="col-3">
         <div class="card border-0 bg-primary bg-opacity-10 h-100">
-            <div class="card-body text-center p-3">
-                <i data-feather="bell" class="text-primary mb-2" style="width: 20px; height: 20px;"></i>
-                <div class="fw-bold text-primary fs-4 mb-1" id="notificationStatus">
-                    <span class="badge bg-secondary rounded-pill">OFF</span>
+            <div class="card-body text-center p-2">
+                <i data-feather="bell" class="text-primary mb-1" style="width: 16px; height: 16px;"></i>
+                <div class="fw-bold text-primary fs-5 mb-1" id="notificationStatus">
+                    <span class="badge bg-secondary rounded-pill px-1" style="font-size: 0.6rem;">OFF</span>
                 </div>
-                <small class="text-dark-emphasis">Alerts</small>
+                <small class="text-dark-emphasis" style="font-size: 0.7rem;">Alerts</small>
             </div>
         </div>
     </div>
