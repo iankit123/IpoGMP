@@ -50,11 +50,10 @@ def subscribe_notifications():
             existing.auth = subscription_data['keys']['auth']
         else:
             # Create new subscription
-            subscription = PushSubscription(
-                endpoint=subscription_data['endpoint'],
-                p256dh=subscription_data['keys']['p256dh'],
-                auth=subscription_data['keys']['auth']
-            )
+            subscription = PushSubscription()
+            subscription.endpoint = subscription_data['endpoint']
+            subscription.p256dh = subscription_data['keys']['p256dh']
+            subscription.auth = subscription_data['keys']['auth']
             db.session.add(subscription)
         
         db.session.commit()

@@ -16,7 +16,7 @@ class NotificationManager:
         self.vapid_public_key = os.environ.get("VAPID_PUBLIC_KEY") 
         self.vapid_claims = {
             "sub": "mailto:admin@ipotracker.com"
-        }
+        } if self.vapid_private_key else None
     
     def send_notification(self, subscription_info, message_data):
         """Send push notification to a single subscription"""
