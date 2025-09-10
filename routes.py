@@ -13,12 +13,13 @@ logger = logging.getLogger(__name__)
 def index():
     """Main dashboard page"""
     try:
+        from datetime import datetime
         # Get all active IPOs, ordered by GMP percentage (descending)
         ipos = IPO.query.filter_by(is_active=True).order_by(IPO.gmp_percentage.desc().nullslast()).all()
-        return render_template('index.html', ipos=ipos)
+        return render_template('index.html', ipos=ipos, today=datetime.now())
     except Exception as e:
         logger.error(f"Error loading dashboard: {e}")
-        return render_template('index.html', ipos=[], error="Error loading IPO data")
+        return render_template('index.html', ipos=[], error="Error loading IPO data", today=datetime.now())
 
 @app.route('/api/ipos')
 def api_ipos():

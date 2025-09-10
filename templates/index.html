@@ -131,7 +131,7 @@
                         </td>
                         <td>
                             {% if ipo.close_date %}
-                                {% set days_left = (ipo.close_date.date() - moment().date()).days %}
+                                {% set days_left = (ipo.close_date.date() - today.date()).days %}
                                 {{ ipo.close_date.strftime('%d %b %Y') }}
                                 {% if days_left == 0 %}
                                     <br><small class="badge bg-danger">Last Day!</small>
@@ -174,9 +174,9 @@
                             {% endif %}
                         </td>
                         <td>
-                            {% if ipo.close_date and ipo.close_date.date() < moment().date() %}
+                            {% if ipo.close_date and ipo.close_date.date() < today.date() %}
                                 <span class="badge bg-secondary">Closed</span>
-                            {% elif ipo.open_date and ipo.open_date.date() > moment().date() %}
+                            {% elif ipo.open_date and ipo.open_date.date() > today.date() %}
                                 <span class="badge bg-primary">Upcoming</span>
                             {% else %}
                                 <span class="badge bg-success">Open</span>
