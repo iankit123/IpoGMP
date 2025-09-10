@@ -131,10 +131,10 @@
                         </td>
                         <td>
                             {% if ipo.open_date and ipo.close_date %}
-                                {% if ipo.open_date.strftime('%d') != ipo.close_date.strftime('%d') %}
-                                    {{ ipo.open_date.strftime('%-d') }}-{{ ipo.close_date.strftime('%-d %b') }}
+                                {% if ipo.open_date.day != ipo.close_date.day %}
+                                    {{ ipo.open_date.day }}-{{ ipo.close_date.day }} {{ ipo.close_date.strftime('%b') }}
                                 {% else %}
-                                    {{ ipo.open_date.strftime('%-d %b') }}
+                                    {{ ipo.open_date.day }} {{ ipo.open_date.strftime('%b') }}
                                 {% endif %}
                                 {% set days_left = (ipo.close_date.date() - today.date()).days %}
                                 {% if days_left == 0 %}
@@ -144,8 +144,6 @@
                                 {% elif days_left > 1 and days_left <= 3 %}
                                     <br><small class="badge bg-info">{{ days_left }} Days Left</small>
                                 {% endif %}
-                            {% elif ipo.close_date %}
-                                {{ ipo.close_date.strftime('%-d %b %Y') }}
                             {% else %}
                                 <span class="text-muted">TBA</span>
                             {% endif %}

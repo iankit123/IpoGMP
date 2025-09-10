@@ -16,10 +16,12 @@ def index():
         from datetime import datetime
         today = datetime.now().date()
         
-        # Get only currently open IPOs (close_date >= today or close_date is NULL), ordered by GMP percentage (descending)
+        # Get only currently open IPOs (must have open/close dates and close_date >= today), ordered by GMP percentage (descending)
         ipos = IPO.query.filter(
             IPO.is_active == True,
-            db.or_(IPO.close_date >= today, IPO.close_date == None)
+            IPO.open_date != None,
+            IPO.close_date != None,
+            IPO.close_date >= today
         ).order_by(IPO.gmp_percentage.desc().nullslast()).all()
         
         logger.info(f"Dashboard: Found {len(ipos)} currently open IPOs")
@@ -39,10 +41,12 @@ def api_ipos():
         from datetime import datetime
         today = datetime.now().date()
         
-        # Get only currently open IPOs (close_date >= today or close_date is NULL)
+        # Get only currently open IPOs (must have open/close dates and close_date >= today)
         ipos = IPO.query.filter(
             IPO.is_active == True,
-            db.or_(IPO.close_date >= today, IPO.close_date == None)
+            IPO.open_date != None,
+            IPO.close_date != None,
+            IPO.close_date >= today
         ).order_by(IPO.gmp_percentage.desc().nullslast()).all()
         
         logger.info(f"API: Found {len(ipos)} currently open IPOs")
