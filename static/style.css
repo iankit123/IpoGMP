@@ -179,6 +179,18 @@ footer {
   color: #0d6efd;
 }
 
+/* Force status cards to single row on all screens */
+.status-cards-row {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+}
+
+.status-cards-row > .col-3 {
+  flex: 1 !important;
+  min-width: 0 !important;
+  max-width: 25% !important;
+}
+
 /* Mobile optimizations */
 @media (max-width: 768px) {
   .card-body {
@@ -200,6 +212,22 @@ footer {
   
   .table-responsive {
     border-radius: 0;
+  }
+  
+  /* Extra small mobile force single row */
+  .status-cards-row > .col-3 {
+    flex: 1 1 25% !important;
+    min-width: 70px !important;
+    max-width: 25% !important;
+  }
+  
+  .status-cards-row .card-body {
+    padding: 0.5rem !important;
+    font-size: 0.8rem;
+  }
+  
+  .status-cards-row small {
+    font-size: 0.65rem !important;
   }
 }
 
