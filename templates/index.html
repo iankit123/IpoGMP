@@ -263,13 +263,14 @@
 </div>
 
 <!-- Loading Overlay -->
-<div id="loadingOverlay" class="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 d-none" style="z-index: 9999;">
+<div id="loadingOverlay" class="position-fixed top-0 start-0 w-100 h-100 d-none" style="z-index: 9999;">
     <div class="d-flex justify-content-center align-items-center h-100">
-        <div class="text-center text-white">
-            <div class="spinner-border mb-3" role="status">
+        <div class="text-center">
+            <div class="spinner-border text-primary mb-3" role="status">
                 <span class="visually-hidden">Loading...</span>
             </div>
-            <h5>Loading IPO data...</h5>
+            <h5 class="text-dark">Refreshing IPO Data...</h5>
+            <p class="text-muted">Please wait while we fetch the latest information</p>
         </div>
     </div>
 </div>
@@ -277,52 +278,89 @@
 
 {% block scripts %}
 <script>
-// Import moment.js for date calculations
-const moment = () => new Date();
-
-// Search functionality
-document.getElementById('searchInput').addEventListener('input', function() {
-    const searchTerm = this.value.toLowerCase();
-    const rows = document.querySelectorAll('#ipoTableBody tr');
+// Mobile and Desktop Search functionality
+function performSearch() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
     
-    rows.forEach(row => {
-        const ipoName = row.getAttribute('data-ipo-name');
-        if (ipoName.includes(searchTerm)) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
+    // Search in desktop table
+    const tableRows = document.querySelectorAll('#ipoTableBody tr');
+    tableRows.forEach(row => {
+        const ipoName = row.dataset.ipoName;
+        row.style.display = ipoName.includes(searchTerm) ? '' : 'none';
+    });
+    
+    // Search in mobile cards
+    const mobileCards = document.querySelectorAll('.ipo-card');
+    mobileCards.forEach(card => {
+        const ipoName = card.dataset.ipoName;
+        card.style.display = ipoName.includes(searchTerm) ? '' : 'none';
+    });
+    
+    updateStats();
+}
+
+// Mobile and Desktop GMP Filter functionality
+function performFilter() {
+    const filterValue = document.getElementById('gmpFilter').value;
+    
+    // Filter desktop table
+    const tableRows = document.querySelectorAll('#ipoTableBody tr');
+    tableRows.forEach(row => {
+        const gmpPercentage = parseFloat(row.dataset.gmp) || 0;
+        const shouldShow = shouldShowByFilter(gmpPercentage, filterValue);
+        row.style.display = shouldShow ? '' : 'none';
+    });
+    
+    // Filter mobile cards
+    const mobileCards = document.querySelectorAll('.ipo-card');
+    mobileCards.forEach(card => {
+        const gmpPercentage = parseFloat(card.dataset.gmp) || 0;
+        const shouldShow = shouldShowByFilter(gmpPercentage, filterValue);
+        card.style.display = shouldShow ? '' : 'none';
+    });
+    
+    updateStats();
+}
+
+function shouldShowByFilter(gmpPercentage, filterValue) {
+    switch(filterValue) {
+        case 'high':
+            return gmpPercentage > 50;
+        case 'medium':
+            return gmpPercentage >= 20 && gmpPercentage <= 50;
+        case 'low':
+            return gmpPercentage > 0 && gmpPercentage < 20;
+        default:
+            return true;
+    }
+}
+
+// Event listeners for search and filter
+document.getElementById('searchInput').addEventListener('input', performSearch);
+document.getElementById('gmpFilter').addEventListener('change', performFilter);
+
+// Update statistics based on visible items
+function updateStats() {
+    const visibleTableRows = document.querySelectorAll('#ipoTableBody tr:not([style*="display: none"])');
+    const visibleMobileCards = document.querySelectorAll('.ipo-card:not([style*="display: none"])');
+    
+    // Use whichever view is visible (mobile cards or desktop table)
+    const visibleItems = window.innerWidth < 768 ? visibleMobileCards : visibleTableRows;
+    
+    document.getElementById('activeIpoCount').textContent = visibleItems.length;
+    
+    let highGmpCount = 0;
+    visibleItems.forEach(item => {
+        const gmp = parseFloat(item.dataset.gmp) || 0;
+        if (gmp > 50) {
+            highGmpCount++;
         }
     });
-});
-
-// GMP filter functionality
-document.getElementById('gmpFilter').addEventListener('change', function() {
-    const filterValue = this.value;
-    const rows = document.querySelectorAll('#ipoTableBody tr');
     
-    rows.forEach(row => {
-        const gmp = parseFloat(row.getAttribute('data-gmp'));
-        let show = true;
-        
-        switch(filterValue) {
-            case 'high':
-                show = gmp > 50;
-                break;
-            case 'medium':
-                show = gmp >= 20 && gmp <= 50;
-                break;
-            case 'low':
-                show = gmp > 0 && gmp < 20;
-                break;
-            default:
-                show = true;
-        }
-        
-        row.style.display = show ? '' : 'none';
-    });
-});
+    document.getElementById('highGmpCount').textContent = highGmpCount;
+}
 
-// Table sorting functionality
+// Sort table functionality (desktop only)
 let sortDirection = {};
 
 function sortTable(columnIndex) {
@@ -330,80 +368,104 @@ function sortTable(columnIndex) {
     const tbody = table.querySelector('tbody');
     const rows = Array.from(tbody.querySelectorAll('tr'));
     
-    // Toggle sort direction
-    sortDirection[columnIndex] = !sortDirection[columnIndex];
-    const ascending = sortDirection[columnIndex];
+    const currentDirection = sortDirection[columnIndex] || 'asc';
+    const newDirection = currentDirection === 'asc' ? 'desc' : 'asc';
+    sortDirection[columnIndex] = newDirection;
     
     rows.sort((a, b) => {
-        const cellA = a.cells[columnIndex].textContent.trim();
-        const cellB = b.cells[columnIndex].textContent.trim();
+        const aText = a.cells[columnIndex].textContent.trim();
+        const bText = b.cells[columnIndex].textContent.trim();
         
-        // Handle different data types
-        let valueA, valueB;
-        
-        if (columnIndex === 3 || columnIndex === 4) { // Price columns
-            valueA = parseFloat(cellA.replace(/[₹,]/g, '')) || 0;
-            valueB = parseFloat(cellB.replace(/[₹,]/g, '')) || 0;
-        } else if (columnIndex === 5) { // Percentage column
-            valueA = parseFloat(cellA.replace(/[+%]/g, '')) || 0;
-            valueB = parseFloat(cellB.replace(/[+%]/g, '')) || 0;
-        } else if (columnIndex === 1 || columnIndex === 2) { // Date columns
-            valueA = new Date(cellA);
-            valueB = new Date(cellB);
-        } else {
-            valueA = cellA.toLowerCase();
-            valueB = cellB.toLowerCase();
+        // Handle numeric sorting for price and GMP columns
+        if (columnIndex === 2 || columnIndex === 3 || columnIndex === 4) {
+            const aNum = parseFloat(aText.replace(/[₹,%+]/g, '')) || 0;
+            const bNum = parseFloat(bText.replace(/[₹,%+]/g, '')) || 0;
+            return newDirection === 'asc' ? aNum - bNum : bNum - aNum;
         }
         
-        if (valueA < valueB) return ascending ? -1 : 1;
-        if (valueA > valueB) return ascending ? 1 : -1;
-        return 0;
+        // Handle date sorting
+        if (columnIndex === 1) {
+            const aDate = new Date(aText);
+            const bDate = new Date(bText);
+            if (!isNaN(aDate) && !isNaN(bDate)) {
+                return newDirection === 'asc' ? aDate - bDate : bDate - aDate;
+            }
+        }
+        
+        return newDirection === 'asc' 
+            ? aText.localeCompare(bText)
+            : bText.localeCompare(aText);
     });
     
-    // Re-append sorted rows
     rows.forEach(row => tbody.appendChild(row));
+    updateSortIndicators(columnIndex, newDirection);
 }
 
-// Refresh data functionality
-async function refreshData() {
-    showLoading(true);
-    try {
-        const response = await fetch('/api/ipos');
-        if (response.ok) {
+function updateSortIndicators(activeColumn, direction) {
+    const headers = document.querySelectorAll('#ipoTable th[onclick]');
+    headers.forEach((header, index) => {
+        const icon = header.querySelector('i[data-feather]');
+        if (index === activeColumn) {
+            icon.setAttribute('data-feather', direction === 'asc' ? 'chevron-up' : 'chevron-down');
+        } else {
+            icon.setAttribute('data-feather', 'chevrons-up-down');
+        }
+    });
+    feather.replace();
+}
+
+// Manual refresh function
+function refreshData() {
+    document.getElementById('loadingOverlay').classList.remove('d-none');
+    
+    fetch('/api/scrape', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
             location.reload();
         } else {
-            throw new Error('Failed to refresh data');
+            alert('Failed to refresh data. Please try again.');
         }
-    } catch (error) {
+    })
+    .catch(error => {
         console.error('Error refreshing data:', error);
-        alert('Failed to refresh data. Please try again.');
-    } finally {
-        showLoading(false);
-    }
+        alert('Error refreshing data. Please try again.');
+    })
+    .finally(() => {
+        document.getElementById('loadingOverlay').classList.add('d-none');
+    });
 }
 
-// Show/hide loading overlay
-function showLoading(show) {
-    const overlay = document.getElementById('loadingOverlay');
-    if (show) {
-        overlay.classList.remove('d-none');
-    } else {
-        overlay.classList.add('d-none');
-    }
-}
+// Auto-refresh functionality
+setInterval(() => {
+    fetch('/api/last-updated')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('lastUpdated').textContent = data.last_updated;
+        })
+        .catch(error => console.error('Error fetching last updated time:', error));
+}, 60000);
 
-// Auto-refresh every 5 minutes
-setInterval(refreshData, 5 * 60 * 1000);
-
-// Update last updated time
-function updateLastUpdatedTime() {
-    const lastUpdatedElement = document.getElementById('lastUpdated');
-    if (lastUpdatedElement) {
-        lastUpdatedElement.textContent = new Date().toLocaleString();
-    }
-}
-
-// Update on page load
-updateLastUpdatedTime();
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    fetch('/api/last-updated')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('lastUpdated').textContent = data.last_updated;
+        })
+        .catch(error => {
+            document.getElementById('lastUpdated').textContent = 'Unknown';
+        });
+    
+    updateStats();
+    
+    // Handle window resize to update stats for correct view
+    window.addEventListener('resize', updateStats);
+});
 </script>
 {% endblock %}
