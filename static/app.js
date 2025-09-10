@@ -5,6 +5,7 @@ class IPOTracker {
     this.isOnline = navigator.onLine;
     this.swRegistration = null;
     this.notificationPermission = 'default';
+    this.deferredPrompt = null;
     
     this.init();
   }
@@ -24,6 +25,9 @@ class IPOTracker {
     
     // Setup admin functions
     this.setupAdminFunctions();
+    
+    // Setup PWA install prompt
+    this.setupInstallPrompt();
     
     console.log('IPO Tracker initialized');
   }
@@ -199,6 +203,201 @@ class IPOTracker {
     // Make admin functions globally available
     window.manualScrape = this.manualScrape.bind(this);
     window.testNotification = this.testNotification.bind(this);
+  }
+
+  // Setup PWA install prompt
+  setupInstallPrompt() {
+    // Listen for beforeinstallprompt event
+    window.addEventListener('beforeinstallprompt', (e) => {
+      console.log('PWA install prompt available');
+      e.preventDefault();
+      this.deferredPrompt = e;
+      this.showInstallBottomSheet();
+    });
+
+    // Check if already installed
+    window.addEventListener('appinstalled', () => {
+      console.log('PWA installed successfully');
+      this.hideInstallBottomSheet();
+      this.deferredPrompt = null;
+    });
+
+    // For iOS Safari, show bottom sheet if not already dismissed
+    if (this.isIOS() && !this.isInStandaloneMode() && !localStorage.getItem('pwa-install-dismissed')) {
+      setTimeout(() => {
+        this.showInstallBottomSheet(true);
+      }, 2000);
+    }
+  }
+
+  // Check if device is iOS
+  isIOS() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  }
+
+  // Check if app is running in standalone mode (already installed)
+  isInStandaloneMode() {
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+  }
+
+  // Show install bottom sheet
+  showInstallBottomSheet(isIOS = false) {
+    // Don't show if already dismissed
+    if (localStorage.getItem('pwa-install-dismissed')) {
+      return;
+    }
+
+    const bottomSheet = this.createInstallBottomSheet(isIOS);
+    document.body.appendChild(bottomSheet);
+    
+    // Animate in
+    setTimeout(() => {
+      bottomSheet.classList.add('show');
+    }, 100);
+  }
+
+  // Create install bottom sheet HTML
+  createInstallBottomSheet(isIOS = false) {
+    const bottomSheet = document.createElement('div');
+    bottomSheet.className = 'install-bottom-sheet';
+    bottomSheet.id = 'installBottomSheet';
+    
+    const message = isIOS 
+      ? 'Save app on phone to get alerts on GMP stocks' 
+      : 'Install app to get instant notifications on high GMP stocks';
+    
+    const buttonText = isIOS ? 'Add to Home Screen' : 'Install App';
+    
+    bottomSheet.innerHTML = `
+      <div class="bottom-sheet-content">
+        <div class="bottom-sheet-handle"></div>
+        <div class="bottom-sheet-body">
+          <div class="d-flex align-items-center">
+            <i data-feather="smartphone" class="me-3 text-primary"></i>
+            <div class="flex-grow-1">
+              <h6 class="mb-1">${message}</h6>
+              <small class="text-muted">Get notified when IPOs have high GMP and are closing soon</small>
+            </div>
+          </div>
+          <div class="mt-3 d-flex gap-2">
+            <button class="btn btn-primary btn-sm" id="installAppBtn">
+              <i data-feather="download" class="me-1"></i>
+              ${buttonText}
+            </button>
+            <button class="btn btn-outline-secondary btn-sm" id="dismissInstallBtn">
+              Later
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Add event listeners
+    const installBtn = bottomSheet.querySelector('#installAppBtn');
+    const dismissBtn = bottomSheet.querySelector('#dismissInstallBtn');
+    
+    installBtn.addEventListener('click', () => {
+      if (isIOS) {
+        this.showIOSInstallInstructions();
+      } else {
+        this.promptInstall();
+      }
+    });
+    
+    dismissBtn.addEventListener('click', () => {
+      this.dismissInstallPrompt();
+    });
+
+    return bottomSheet;
+  }
+
+  // Show iOS install instructions
+  showIOSInstallInstructions() {
+    const modal = document.createElement('div');
+    modal.className = 'modal fade show';
+    modal.style.display = 'block';
+    modal.innerHTML = `
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Add to Home Screen</h5>
+            <button type="button" class="btn-close" onclick="this.closest('.modal').remove()"></button>
+          </div>
+          <div class="modal-body text-center">
+            <p>To install this app on your iPhone:</p>
+            <div class="install-steps">
+              <div class="step mb-3">
+                <i data-feather="share" class="text-primary mb-2"></i>
+                <p>1. Tap the <strong>Share</strong> button in Safari</p>
+              </div>
+              <div class="step mb-3">
+                <i data-feather="plus-square" class="text-primary mb-2"></i>
+                <p>2. Scroll down and tap <strong>"Add to Home Screen"</strong></p>
+              </div>
+              <div class="step">
+                <i data-feather="smartphone" class="text-primary mb-2"></i>
+                <p>3. Tap <strong>"Add"</strong> to install the app</p>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-primary" onclick="this.closest('.modal').remove()">Got it!</button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    this.hideInstallBottomSheet();
+    localStorage.setItem('pwa-install-dismissed', 'true');
+    
+    // Replace feather icons
+    if (typeof feather !== 'undefined') {
+      feather.replace();
+    }
+  }
+
+  // Prompt native install
+  async promptInstall() {
+    if (!this.deferredPrompt) {
+      console.log('No install prompt available');
+      return;
+    }
+
+    try {
+      const result = await this.deferredPrompt.prompt();
+      console.log('Install prompt result:', result.outcome);
+      
+      if (result.outcome === 'accepted') {
+        console.log('User accepted the install prompt');
+      } else {
+        console.log('User dismissed the install prompt');
+      }
+      
+      this.deferredPrompt = null;
+      this.hideInstallBottomSheet();
+      localStorage.setItem('pwa-install-dismissed', 'true');
+    } catch (error) {
+      console.error('Error showing install prompt:', error);
+    }
+  }
+
+  // Dismiss install prompt
+  dismissInstallPrompt() {
+    this.hideInstallBottomSheet();
+    localStorage.setItem('pwa-install-dismissed', 'true');
+    console.log('Install prompt dismissed');
+  }
+
+  // Hide install bottom sheet
+  hideInstallBottomSheet() {
+    const bottomSheet = document.getElementById('installBottomSheet');
+    if (bottomSheet) {
+      bottomSheet.classList.remove('show');
+      setTimeout(() => {
+        bottomSheet.remove();
+      }, 300);
+    }
   }
 
   // Manual scrape function
