@@ -16,9 +16,14 @@ def index():
         from datetime import datetime
         # Get all active IPOs, ordered by GMP percentage (descending)
         ipos = IPO.query.filter_by(is_active=True).order_by(IPO.gmp_percentage.desc().nullslast()).all()
+        logger.info(f"Dashboard: Found {len(ipos)} active IPOs")
+        for i, ipo in enumerate(ipos[:3]):  # Log first 3 IPOs for debugging
+            logger.info(f"IPO {i+1}: {ipo.name} - GMP: {ipo.gmp_percentage}% - Active: {ipo.is_active}")
         return render_template('index.html', ipos=ipos, today=datetime.now())
     except Exception as e:
         logger.error(f"Error loading dashboard: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return render_template('index.html', ipos=[], error="Error loading IPO data", today=datetime.now())
 
 @app.route('/api/ipos')
@@ -26,9 +31,12 @@ def api_ipos():
     """API endpoint to get IPO data as JSON"""
     try:
         ipos = IPO.query.filter_by(is_active=True).order_by(IPO.gmp_percentage.desc().nullslast()).all()
+        logger.info(f"API: Found {len(ipos)} active IPOs")
         return jsonify([ipo.to_dict() for ipo in ipos])
     except Exception as e:
         logger.error(f"Error in API endpoint: {e}")
+        import traceback
+        logger.error(f"API Traceback: {traceback.format_exc()}")
         return jsonify({'error': 'Failed to fetch IPO data'}), 500
 
 @app.route('/api/subscribe', methods=['POST'])

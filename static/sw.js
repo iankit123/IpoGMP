@@ -1,6 +1,6 @@
 // Service Worker for IPO Tracker PWA
 
-const CACHE_NAME = 'ipo-tracker-v1';
+const CACHE_NAME = 'ipo-tracker-v2';
 const STATIC_CACHE_URLS = [
   '/',
   '/static/style.css',
