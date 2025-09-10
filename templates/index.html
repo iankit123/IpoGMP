@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Status Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i data-feather="trending-up" class="text-success mb-2"></i>
+                <h5 class="card-title">Active IPOs</h5>
+                <h3 class="text-success" id="activeIpoCount">{{ ipos|length }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i data-feather="percent" class="text-info mb-2"></i>
+                <h5 class="card-title">High GMP</h5>
+                <h3 class="text-info" id="highGmpCount">
+                    {{ ipos|selectattr('gmp_percentage')|selectattr('gmp_percentage', '>', 50)|list|length }}
+                </h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i data-feather="clock" class="text-warning mb-2"></i>
+                <h5 class="card-title">Closing Soon</h5>
+                <h3 class="text-warning" id="closingSoonCount">0</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i data-feather="bell" class="text-primary mb-2"></i>
+                <h5 class="card-title">Notifications</h5>
+                <h3 class="text-primary" id="notificationStatus">
+                    <span class="badge bg-secondary">Disabled</span>
+                </h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters and Search -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="input-group">
+            <span class="input-group-text">
+                <i data-feather="search"></i>
+            </span>
+            <input type="text" class="form-control" id="searchInput" placeholder="Search IPO name...">
+        </div>
+    </div>
+    <div class="col-md-3">
+        <select class="form-select" id="gmpFilter">
+            <option value="">All GMPs</option>
+            <option value="high">High (>50%)</option>
+            <option value="medium">Medium (20-50%)</option>
+            <option value="low">Low (<20%)</option>
+        </select>
+    </div>
+    <div class="col-md-3">
+        <button class="btn btn-outline-primary w-100" onclick="refreshData()">
+            <i data-feather="refresh-cw" class="me-2"></i>
+            Refresh Data
+        </button>
+    </div>
+</div>
+
+<!-- IPO Data Table -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i data-feather="list" class="me-2"></i>
+            IPO Grey Market Premium
+        </h5>
+        <small class="text-muted">Auto-refreshes every 5 minutes</small>
+    </div>
+    <div class="card-body">
+        {% if ipos %}
+        <div class="table-responsive">
+            <table class="table table-hover" id="ipoTable">
+                <thead>
+                    <tr>
+                        <th onclick="sortTable(0)">
+                            IPO Name
+                            <i data-feather="chevrons-up-down" class="ms-1"></i>
+                        </th>
+                        <th onclick="sortTable(1)">
+                            Open Date
+                            <i data-feather="chevrons-up-down" class="ms-1"></i>
+                        </th>
+                        <th onclick="sortTable(2)">
+                            Close Date
+                            <i data-feather="chevrons-up-down" class="ms-1"></i>
+                        </th>
+                        <th onclick="sortTable(3)">
+                            Issue Price
+                            <i data-feather="chevrons-up-down" class="ms-1"></i>
+                        </th>
+                        <th onclick="sortTable(4)">
+                            GMP Value
+                            <i data-feather="chevrons-up-down" class="ms-1"></i>
+                        </th>
+                        <th onclick="sortTable(5)">
+                            GMP %
+                            <i data-feather="chevrons-up-down" class="ms-1"></i>
+                        </th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="ipoTableBody">
+                    {% for ipo in ipos %}
+                    <tr data-ipo-name="{{ ipo.name|lower }}" data-gmp="{{ ipo.gmp_percentage or 0 }}">
+                        <td>
+                            <strong>{{ ipo.name }}</strong>
+                            {% if ipo.subscription_status %}
+                            <br><small class="text-muted">{{ ipo.subscription_status }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if ipo.open_date %}
+                                {{ ipo.open_date.strftime('%d %b %Y') }}
+                            {% else %}
+                                <span class="text-muted">TBA</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if ipo.close_date %}
+                                {% set days_left = (ipo.close_date.date() - moment().date()).days %}
+                                {{ ipo.close_date.strftime('%d %b %Y') }}
+                                {% if days_left == 0 %}
+                                    <br><small class="badge bg-danger">Last Day!</small>
+                                {% elif days_left == 1 %}
+                                    <br><small class="badge bg-warning">1 Day Left</small>
+                                {% elif days_left > 1 and days_left <= 3 %}
+                                    <br><small class="badge bg-info">{{ days_left }} Days Left</small>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">TBA</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if ipo.issue_price %}
+                                ₹{{ "%.0f"|format(ipo.issue_price) }}
+                            {% else %}
+                                <span class="text-muted">TBA</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if ipo.gmp_value %}
+                                ₹{{ "%.0f"|format(ipo.gmp_value) }}
+                            {% else %}
+                                <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if ipo.gmp_percentage %}
+                                {% if ipo.gmp_percentage > 50 %}
+                                    <span class="badge bg-success">+{{ "%.1f"|format(ipo.gmp_percentage) }}%</span>
+                                {% elif ipo.gmp_percentage > 20 %}
+                                    <span class="badge bg-info">+{{ "%.1f"|format(ipo.gmp_percentage) }}%</span>
+                                {% elif ipo.gmp_percentage > 0 %}
+                                    <span class="badge bg-secondary">+{{ "%.1f"|format(ipo.gmp_percentage) }}%</span>
+                                {% else %}
+                                    <span class="badge bg-danger">{{ "%.1f"|format(ipo.gmp_percentage) }}%</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if ipo.close_date and ipo.close_date.date() < moment().date() %}
+                                <span class="badge bg-secondary">Closed</span>
+                            {% elif ipo.open_date and ipo.open_date.date() > moment().date() %}
+                                <span class="badge bg-primary">Upcoming</span>
+                            {% else %}
+                                <span class="badge bg-success">Open</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i data-feather="inbox" class="text-muted mb-3" style="width: 48px; height: 48px;"></i>
+            <h5 class="text-muted">No IPO Data Available</h5>
+            <p class="text-muted">IPO data will appear here once scraping is complete.</p>
+            <button class="btn btn-primary" onclick="manualScrape()">
+                <i data-feather="download" class="me-2"></i>
+                Trigger Data Scraping
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 d-none" style="z-index: 9999;">
+    <div class="d-flex justify-content-center align-items-center h-100">
+        <div class="text-center text-white">
+            <div class="spinner-border mb-3" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <h5>Loading IPO data...</h5>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Import moment.js for date calculations
+const moment = () => new Date();
+
+// Search functionality
+document.getElementById('searchInput').addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase();
+    const rows = document.querySelectorAll('#ipoTableBody tr');
+    
+    rows.forEach(row => {
+        const ipoName = row.getAttribute('data-ipo-name');
+        if (ipoName.includes(searchTerm)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+});
+
+// GMP filter functionality
+document.getElementById('gmpFilter').addEventListener('change', function() {
+    const filterValue = this.value;
+    const rows = document.querySelectorAll('#ipoTableBody tr');
+    
+    rows.forEach(row => {
+        const gmp = parseFloat(row.getAttribute('data-gmp'));
+        let show = true;
+        
+        switch(filterValue) {
+            case 'high':
+                show = gmp > 50;
+                break;
+            case 'medium':
+                show = gmp >= 20 && gmp <= 50;
+                break;
+            case 'low':
+                show = gmp > 0 && gmp < 20;
+                break;
+            default:
+                show = true;
+        }
+        
+        row.style.display = show ? '' : 'none';
+    });
+});
+
+// Table sorting functionality
+let sortDirection = {};
+
+function sortTable(columnIndex) {
+    const table = document.getElementById('ipoTable');
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    
+    // Toggle sort direction
+    sortDirection[columnIndex] = !sortDirection[columnIndex];
+    const ascending = sortDirection[columnIndex];
+    
+    rows.sort((a, b) => {
+        const cellA = a.cells[columnIndex].textContent.trim();
+        const cellB = b.cells[columnIndex].textContent.trim();
+        
+        // Handle different data types
+        let valueA, valueB;
+        
+        if (columnIndex === 3 || columnIndex === 4) { // Price columns
+            valueA = parseFloat(cellA.replace(/[₹,]/g, '')) || 0;
+            valueB = parseFloat(cellB.replace(/[₹,]/g, '')) || 0;
+        } else if (columnIndex === 5) { // Percentage column
+            valueA = parseFloat(cellA.replace(/[+%]/g, '')) || 0;
+            valueB = parseFloat(cellB.replace(/[+%]/g, '')) || 0;
+        } else if (columnIndex === 1 || columnIndex === 2) { // Date columns
+            valueA = new Date(cellA);
+            valueB = new Date(cellB);
+        } else {
+            valueA = cellA.toLowerCase();
+            valueB = cellB.toLowerCase();
+        }
+        
+        if (valueA < valueB) return ascending ? -1 : 1;
+        if (valueA > valueB) return ascending ? 1 : -1;
+        return 0;
+    });
+    
+    // Re-append sorted rows
+    rows.forEach(row => tbody.appendChild(row));
+}
+
+// Refresh data functionality
+async function refreshData() {
+    showLoading(true);
+    try {
+        const response = await fetch('/api/ipos');
+        if (response.ok) {
+            location.reload();
+        } else {
+            throw new Error('Failed to refresh data');
+        }
+    } catch (error) {
+        console.error('Error refreshing data:', error);
+        alert('Failed to refresh data. Please try again.');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// Show/hide loading overlay
+function showLoading(show) {
+    const overlay = document.getElementById('loadingOverlay');
+    if (show) {
+        overlay.classList.remove('d-none');
+    } else {
+        overlay.classList.add('d-none');
+    }
+}
+
+// Auto-refresh every 5 minutes
+setInterval(refreshData, 5 * 60 * 1000);
+
+// Update last updated time
+function updateLastUpdatedTime() {
+    const lastUpdatedElement = document.getElementById('lastUpdated');
+    if (lastUpdatedElement) {
+        lastUpdatedElement.textContent = new Date().toLocaleString();
+    }
+}
+
+// Update on page load
+updateLastUpdatedTime();
+</script>
+{% endblock %}

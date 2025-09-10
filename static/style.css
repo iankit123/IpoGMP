@@ -1,0 +1,263 @@
+/* Custom styles for IPO Tracker PWA */
+
+/* App-specific styles that complement Bootstrap theme */
+
+/* Ensure proper mobile responsiveness */
+.container {
+  max-width: 1200px;
+}
+
+/* Loading overlay styles */
+#loadingOverlay {
+  backdrop-filter: blur(5px);
+}
+
+/* Table improvements */
+.table th {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+}
+
+.table th:hover {
+  background-color: var(--bs-dark);
+}
+
+.table th i[data-feather] {
+  width: 14px;
+  height: 14px;
+  opacity: 0.5;
+}
+
+.table td {
+  vertical-align: middle;
+}
+
+/* Badge improvements */
+.badge {
+  font-size: 0.75em;
+  font-weight: 600;
+}
+
+/* Card enhancements */
+.card {
+  border: none;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s ease-in-out;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+}
+
+/* Status cards */
+.card-body h3 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.card-body i[data-feather] {
+  width: 2rem;
+  height: 2rem;
+}
+
+/* Search and filter enhancements */
+.input-group-text {
+  background-color: var(--bs-dark);
+  border-color: var(--bs-border-color);
+}
+
+/* Navigation enhancements */
+.navbar-brand i[data-feather] {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+/* Button improvements */
+.btn {
+  border-radius: 0.375rem;
+  font-weight: 500;
+  transition: all 0.2s ease-in-out;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+/* Responsive table */
+.table-responsive {
+  border-radius: 0.375rem;
+}
+
+/* Footer styles */
+footer {
+  margin-top: auto;
+}
+
+footer i[data-feather] {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* PWA install prompt styles */
+.install-prompt {
+  position: fixed;
+  bottom: 1rem;
+  left: 1rem;
+  right: 1rem;
+  z-index: 1050;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+/* Notification styles */
+.notification-banner {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 1060;
+  max-width: 300px;
+}
+
+/* Offline indicator */
+.offline-indicator {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background-color: var(--bs-warning);
+  color: var(--bs-dark);
+  text-align: center;
+  padding: 0.5rem;
+  z-index: 1070;
+  font-weight: 600;
+}
+
+/* Loading states */
+.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.skeleton {
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .container {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+  
+  .card-body h3 {
+    font-size: 1.5rem;
+  }
+  
+  .table-responsive {
+    border-radius: 0;
+    margin-left: -0.75rem;
+    margin-right: -0.75rem;
+  }
+  
+  .btn {
+    font-size: 0.875rem;
+  }
+  
+  .navbar-brand {
+    font-size: 1rem;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .card {
+    border: 1px solid var(--bs-border-color);
+  }
+  
+  .badge {
+    border: 1px solid currentColor;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Print styles */
+@media print {
+  .navbar,
+  .btn,
+  #loadingOverlay,
+  .install-prompt,
+  .notification-banner {
+    display: none !important;
+  }
+  
+  .card {
+    box-shadow: none;
+    border: 1px solid #000;
+  }
+  
+  .table {
+    border-collapse: collapse;
+  }
+  
+  .table th,
+  .table td {
+    border: 1px solid #000;
+  }
+}
+
+/* Focus management for accessibility */
+.btn:focus,
+.form-control:focus,
+.form-select:focus {
+  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+/* Success/error states */
+.success-state {
+  background-color: var(--bs-success);
+  color: white;
+  padding: 1rem;
+  border-radius: 0.375rem;
+  margin: 1rem 0;
+}
+
+.error-state {
+  background-color: var(--bs-danger);
+  color: white;
+  padding: 1rem;
+  border-radius: 0.375rem;
+  margin: 1rem 0;
+}
+
+/* Empty state styling */
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+.empty-state i[data-feather] {
+  width: 4rem;
+  height: 4rem;
+  opacity: 0.5;
+}
