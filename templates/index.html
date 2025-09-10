@@ -37,10 +37,30 @@
             <div class="card-body text-center p-2">
                 <i data-feather="bell" class="text-primary mb-1" style="width: 16px; height: 16px;"></i>
                 <div class="fw-bold text-primary fs-5 mb-1" id="notificationStatus">
-                    <span class="badge bg-secondary rounded-pill px-1" style="font-size: 0.6rem;">OFF</span>
+                    <span class="badge bg-secondary rounded-pill px-1 cursor-pointer" style="font-size: 0.6rem;" onclick="enableNotifications()" title="Click to enable notifications">OFF</span>
                 </div>
                 <small class="text-dark-emphasis" style="font-size: 0.7rem;">Alerts</small>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- PWA Install Ribbon -->
+<div class="alert alert-primary border-0 shadow-sm mb-4 d-none" id="installRibbon" style="border-radius: 12px;">
+    <div class="row align-items-center">
+        <div class="col-auto">
+            <i data-feather="smartphone" class="text-primary" style="width: 24px; height: 24px;"></i>
+        </div>
+        <div class="col">
+            <div class="fw-semibold text-primary mb-1">Install IPO Tracker for GMP Alerts</div>
+            <small class="text-primary-emphasis">Get instant notifications on your phone when IPO GMP changes!</small>
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-primary btn-sm rounded-pill px-3 me-2" onclick="installRibbonAction()">
+                <i data-feather="download" class="me-1" style="width: 14px; height: 14px;"></i>
+                <span id="installRibbonText">Install</span>
+            </button>
+            <button class="btn-close btn-close-primary" onclick="hideInstallRibbon()" aria-label="Close"></button>
         </div>
     </div>
 </div>
@@ -580,6 +600,126 @@ function sortIposByDefault() {
     }
 }
 
+// Show install ribbon on page load if not installed
+function showInstallRibbon() {
+    const ribbon = document.getElementById('installRibbon');
+    if (!isStandalone && ribbon) {
+        ribbon.classList.remove('d-none');
+        
+        // Update ribbon text based on platform
+        const ribbonText = document.getElementById('installRibbonText');
+        if (isIOS()) {
+            ribbonText.textContent = 'Guide';
+        } else {
+            ribbonText.textContent = 'Install';
+        }
+        
+        feather.replace();
+    }
+}
+
+// Hide install ribbon
+function hideInstallRibbon() {
+    const ribbon = document.getElementById('installRibbon');
+    if (ribbon) {
+        ribbon.classList.add('d-none');
+        // Store preference to not show again for this session
+        sessionStorage.setItem('installRibbonHidden', 'true');
+    }
+}
+
+// Install ribbon action
+function installRibbonAction() {
+    if (isIOS()) {
+        showInstallPrompt();
+    } else if (deferredPrompt) {
+        // Direct install for Android
+        deferredPrompt.prompt().then(result => {
+            console.log('Install prompt result:', result.outcome);
+            if (result.outcome === 'accepted') {
+                hideInstallRibbon();
+            }
+            deferredPrompt = null;
+        });
+    } else {
+        showInstallPrompt();
+    }
+}
+
+// Enable notifications function
+function enableNotifications() {
+    if (!('Notification' in window)) {
+        alert('This browser does not support desktop notifications');
+        return;
+    }
+    
+    if (Notification.permission === 'granted') {
+        // Already granted, proceed with push subscription
+        subscribeToPush();
+    } else if (Notification.permission !== 'denied') {
+        // Request permission
+        Notification.requestPermission().then(permission => {
+            if (permission === 'granted') {
+                subscribeToPush();
+                updateNotificationStatus('ON');
+            } else {
+                alert('Notifications permission denied. Please enable in browser settings.');
+            }
+        });
+    } else {
+        alert('Notifications are blocked. Please enable them in your browser settings.');
+    }
+}
+
+// Subscribe to push notifications
+function subscribeToPush() {
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+        navigator.serviceWorker.ready.then(registration => {
+            registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: 'BM8GvV-5RvjZz5KhMsVjB9F8QaHkMxgzVzNvOV6L-fOkd6qM7gE3mJ2kL_H9gF5_B4F6H3K2J7L0N8R6T9W3X5Z1Y0'
+            }).then(subscription => {
+                // Send subscription to server
+                fetch('/api/push-subscription', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(subscription)
+                }).then(response => {
+                    if (response.ok) {
+                        updateNotificationStatus('ON');
+                        console.log('Push subscription successful');
+                    }
+                });
+            }).catch(error => {
+                console.error('Failed to subscribe to push notifications:', error);
+                alert('Failed to enable notifications. Please try again.');
+            });
+        });
+    }
+}
+
+// Update notification status display
+function updateNotificationStatus(status) {
+    const statusElement = document.getElementById('notificationStatus');
+    if (statusElement) {
+        const badge = statusElement.querySelector('.badge');
+        if (badge) {
+            badge.textContent = status;
+            if (status === 'ON') {
+                badge.className = 'badge bg-success rounded-pill px-1 cursor-pointer';
+                badge.title = 'Notifications enabled';
+                badge.onclick = null; // Remove click handler when ON
+            } else {
+                badge.className = 'badge bg-secondary rounded-pill px-1 cursor-pointer';
+                badge.title = 'Click to enable notifications';
+                badge.onclick = enableNotifications;
+            }
+        }
+    }
+}
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     fetch('/api/last-updated')
@@ -619,37 +759,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Reset the deferred prompt
                 deferredPrompt = null;
                 
-                // Hide the modal
+                // Hide the modal and ribbon
                 installModal.hide();
+                hideInstallRibbon();
             } catch (error) {
                 console.error('Error showing install prompt:', error);
             }
         });
     }
     
-    // Show iOS install prompt after 45 seconds on iOS devices
-    if (isIOS() && !isStandalone) {
-        setTimeout(() => {
-            showInstallPrompt();
-        }, 45000); // 45 seconds for iOS
+    // Show install ribbon if not hidden and not standalone
+    if (!sessionStorage.getItem('installRibbonHidden') && !isStandalone) {
+        setTimeout(showInstallRibbon, 5000); // Show after 5 seconds
     }
     
-    // Add install prompt trigger for notification subscription
-    const enableNotifications = () => {
-        if (!isStandalone && (isIOS() || isAndroid())) {
-            // Show install prompt when user tries to enable notifications
-            showInstallPrompt();
-        }
-    };
+    // Ensure install ribbon shows by default for non-installed users
+    if (!isStandalone && !sessionStorage.getItem('installRibbonHidden')) {
+        setTimeout(showInstallRibbon, 3000); // Show after 3 seconds
+    }
     
-    // Trigger install prompt when notification button is clicked
-    const notificationToggle = document.getElementById('notificationToggle');
-    if (notificationToggle) {
-        notificationToggle.addEventListener('click', function() {
-            if (!isStandalone) {
-                setTimeout(enableNotifications, 1000);
-            }
-        });
+    // Check current notification status
+    if ('Notification' in window && Notification.permission === 'granted') {
+        updateNotificationStatus('ON');
     }
 });
 

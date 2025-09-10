@@ -21,10 +21,10 @@ def start_scheduler():
     try:
         scheduler = BackgroundScheduler()
         
-        # Schedule daily scraping at 9 AM
+        # Schedule daily scraping at 10 AM
         scheduler.add_job(
             func=daily_scrape_job,
-            trigger=CronTrigger(hour=9, minute=0),
+            trigger=CronTrigger(hour=10, minute=0),
             id='daily_scrape',
             name='Daily IPO Data Scraping',
             replace_existing=True

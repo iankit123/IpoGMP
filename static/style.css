@@ -330,6 +330,14 @@ footer {
   pointer-events: none;
 }
 
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.btn-close-primary {
+  filter: invert(1) grayscale(100%) brightness(200%);
+}
+
 .skeleton {
   background: linear-gradient(90deg, #f1f3f4, #e9ecef, #f1f3f4);
   background-size: 200% 100%;

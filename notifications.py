@@ -2,7 +2,8 @@ import os
 import logging
 from pywebpush import webpush, WebPushException
 from models import PushSubscription, IPO
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
+from sqlalchemy import func
 import json
 
 logger = logging.getLogger(__name__)
@@ -72,33 +73,67 @@ class NotificationManager:
         """Check for IPOs meeting alert criteria and send notifications"""
         try:
             today = datetime.now().date()
+            alerts_sent = 0
             
-            # Find IPOs with high GMP (>50%) and closing today or tomorrow
-            high_gmp_ipos = IPO.query.filter(
-                IPO.gmp_percentage > 50,
+            # Find IPOs with GMP > 30% and closing today (last day)
+            # Use date comparison to handle DateTime vs date
+            last_day_ipos = IPO.query.filter(
+                IPO.gmp_percentage > 30,
                 IPO.is_active == True,
-                IPO.close_date.between(today, today + timedelta(days=1))
+                func.date(IPO.close_date) == today
             ).all()
             
-            for ipo in high_gmp_ipos:
-                days_left = (ipo.close_date.date() - today).days if ipo.close_date else 0
-                
+            for ipo in last_day_ipos:
                 message_data = {
-                    'title': 'IPO Alert - High GMP!',
-                    'body': f'{ipo.name} has {ipo.gmp_percentage:.1f}% GMP. {"Last day to apply!" if days_left == 0 else f"{days_left} day(s) left to apply."}',
+                    'title': 'IPO Alert - Last Day!',
+                    'body': f'{ipo.name} has {ipo.gmp_percentage:.1f}% GMP. Last day to apply!',
                     'icon': '/static/icons/icon-192.png',
                     'badge': '/static/icons/icon-192.png',
+                    'tag': f'last-day-{ipo.id}',
+                    'requireInteraction': True,
                     'data': {
                         'ipo_id': ipo.id,
                         'ipo_name': ipo.name,
-                        'gmp_percentage': ipo.gmp_percentage
+                        'gmp_percentage': ipo.gmp_percentage,
+                        'alert_type': 'last_day'
                     }
                 }
                 
                 sent_count = self.send_bulk_notifications(message_data)
-                logger.info(f"Sent alert for {ipo.name} to {sent_count} subscribers")
+                logger.info(f"Sent last day alert for {ipo.name} ({ipo.gmp_percentage:.1f}% GMP) to {sent_count} subscribers")
+                alerts_sent += 1
             
-            return len(high_gmp_ipos)
+            # Additionally, find IPOs with very high GMP (>70%) closing within 2 days as priority alerts
+            priority_ipos = IPO.query.filter(
+                IPO.gmp_percentage > 70,
+                IPO.is_active == True,
+                IPO.close_date.between(today, today + timedelta(days=2)),
+                IPO.close_date > today  # Exclude today to avoid duplicate alerts
+            ).all()
+            
+            for ipo in priority_ipos:
+                days_left = (ipo.close_date.date() - today).days if ipo.close_date else 0
+                
+                message_data = {
+                    'title': 'IPO Alert - Very High GMP!',
+                    'body': f'{ipo.name} has {ipo.gmp_percentage:.1f}% GMP. {days_left} day(s) left to apply.',
+                    'icon': '/static/icons/icon-192.png',
+                    'badge': '/static/icons/icon-192.png',
+                    'tag': f'high-gmp-{ipo.id}',
+                    'data': {
+                        'ipo_id': ipo.id,
+                        'ipo_name': ipo.name,
+                        'gmp_percentage': ipo.gmp_percentage,
+                        'alert_type': 'high_gmp',
+                        'days_left': days_left
+                    }
+                }
+                
+                sent_count = self.send_bulk_notifications(message_data)
+                logger.info(f"Sent high GMP alert for {ipo.name} ({ipo.gmp_percentage:.1f}% GMP) to {sent_count} subscribers")
+                alerts_sent += 1
+            
+            return alerts_sent
             
         except Exception as e:
             logger.error(f"Error checking and sending alerts: {e}")
