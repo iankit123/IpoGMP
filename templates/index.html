@@ -699,7 +699,23 @@ function installRibbonAction() {
             const remainingTime = 30 - userEngagementTime;
             alert(`Almost ready to install! ⏱️\n\nChrome needs ${remainingTime} more seconds of interaction before the install option becomes available.\n\nPlease browse the app for ${remainingTime} more seconds, then try again.`);
         } else {
-            alert('PWA installation not available yet.\n\nThis might be because:\n• You already have the app installed\n• Browser requirements not fully met\n• Try refreshing the page\n\nFor now, you can bookmark this page and add it to your home screen manually.');
+            // Show detailed requirements check
+            const checks = pwaRequirementChecks;
+            let message = 'PWA installation not available yet.\n\nRequirement Check:\n';
+            message += `• HTTPS: ${checks.https ? '✓' : '❌'}\n`;
+            message += `• Service Worker: ${checks.serviceWorkerRegistered ? '✓' : '❌'}\n`;
+            message += `• Manifest: ${checks.manifestValid ? '✓' : '❌'}\n`;
+            message += `• Icons: ${checks.iconsAccessible ? '✓' : '❌'}\n`;
+            message += `• Not Installed: ${checks.notStandalone ? '✓' : '❌'}\n`;
+            message += `• 30s Engagement: ${checks.userEngagement ? '✓' : '❌'}\n\n`;
+            
+            if (Object.values(checks).every(check => check === true)) {
+                message += 'All requirements met! Possible causes:\n• App already installed (check Apps list)\n• Try incognito/private mode\n• Clear browser data and retry';
+            } else {
+                message += 'Some requirements not met. Check browser console (F12) for details.';
+            }
+            
+            alert(message);
         }
     } else if (isSamsungBrowser()) {
         // Samsung Internet specific instructions
@@ -947,25 +963,88 @@ if ('serviceWorker' in navigator) {
 // Debug PWA installation readiness
 let userEngagementTime = 0;
 let engagementTimer;
+let pwaRequirementChecks = {};
+
+// Check all PWA requirements
+async function checkPWARequirements() {
+    const checks = {
+        https: location.protocol === 'https:',
+        serviceWorker: 'serviceWorker' in navigator,
+        manifestLinked: document.querySelector('link[rel="manifest"]') !== null,
+        notStandalone: !isStandalone,
+        userEngagement: userEngagementTime >= 30
+    };
+    
+    // Check if service worker is actually registered
+    if (checks.serviceWorker) {
+        try {
+            const registration = await navigator.serviceWorker.getRegistration();
+            checks.serviceWorkerRegistered = !!registration;
+            if (registration) {
+                checks.serviceWorkerActive = !!registration.active;
+            }
+        } catch (e) {
+            checks.serviceWorkerRegistered = false;
+        }
+    }
+    
+    // Check if manifest is accessible
+    try {
+        const manifestResponse = await fetch('/static/manifest.json');
+        checks.manifestAccessible = manifestResponse.ok;
+        if (manifestResponse.ok) {
+            const manifest = await manifestResponse.json();
+            checks.manifestValid = !!(manifest.name && manifest.start_url && manifest.icons && manifest.icons.length > 0);
+        }
+    } catch (e) {
+        checks.manifestAccessible = false;
+    }
+    
+    // Check if icons are accessible
+    try {
+        const iconResponse = await fetch('/static/icons/icon-192.png');
+        checks.iconsAccessible = iconResponse.ok;
+    } catch (e) {
+        checks.iconsAccessible = false;
+    }
+    
+    pwaRequirementChecks = checks;
+    return checks;
+}
 
 // Track user engagement
 function trackEngagement() {
-    engagementTimer = setInterval(() => {
+    engagementTimer = setInterval(async () => {
         userEngagementTime += 1;
-        console.log(`User engagement: ${userEngagementTime} seconds`);
         
-        // Show engagement status in console
-        if (userEngagementTime === 30) {
-            console.log('✓ 30 seconds engagement reached - PWA install should be available soon');
+        // Check requirements every 10 seconds
+        if (userEngagementTime % 10 === 0) {
+            const checks = await checkPWARequirements();
+            console.log(`\n🔎 PWA Requirements Check (${userEngagementTime}s):`);
+            console.log('✓ HTTPS:', checks.https);
+            console.log('✓ Service Worker Support:', checks.serviceWorker);
+            console.log('✓ Service Worker Registered:', checks.serviceWorkerRegistered);
+            console.log('✓ Service Worker Active:', checks.serviceWorkerActive);
+            console.log('✓ Manifest Linked:', checks.manifestLinked);
+            console.log('✓ Manifest Accessible:', checks.manifestAccessible);
+            console.log('✓ Manifest Valid:', checks.manifestValid);
+            console.log('✓ Icons Accessible:', checks.iconsAccessible);
+            console.log('✓ Not Standalone:', checks.notStandalone);
+            console.log('✓ User Engagement (30s+):', checks.userEngagement);
+            
+            const allGood = Object.values(checks).every(check => check === true);
+            if (allGood && !deferredPrompt) {
+                console.log('⚠️ All requirements met but beforeinstallprompt still not fired!');
+                console.log('Possible causes:');
+                console.log('- App may already be installed (check Settings > Apps)');
+                console.log('- Browser cache issues (try incognito mode)');
+                console.log('- Recent visits may count toward engagement');
+            }
         }
         
-        if (userEngagementTime >= 30 && !deferredPrompt && isAndroidChrome()) {
-            console.log('⚠️ 30+ seconds engagement but no beforeinstallprompt event yet');
-            console.log('PWA Requirements check:');
-            console.log('- HTTPS:', location.protocol === 'https:');
-            console.log('- Service Worker:', 'serviceWorker' in navigator);
-            console.log('- Manifest linked:', document.querySelector('link[rel="manifest"]') !== null);
-            console.log('- Not installed:', !isStandalone);
+        if (userEngagementTime === 30) {
+            console.log('✓ 30 seconds engagement reached - PWA install should be available soon');
+            await checkPWARequirements();
         }
     }, 1000);
 }
