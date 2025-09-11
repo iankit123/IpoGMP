@@ -1,9 +1,39 @@
 {% extends "base.html" %}
 
 {% block content %}
+<!-- Hamburger Menu -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0 fw-bold text-dark">IPO Tracker</h5>
+    <div class="dropdown">
+        <button class="btn btn-outline-secondary btn-sm rounded-pill" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i data-feather="menu" style="width: 16px; height: 16px;"></i>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0" style="border-radius: 12px;">
+            <li>
+                <a class="dropdown-item d-flex align-items-center" href="#" onclick="refreshData(); return false;">
+                    <i data-feather="refresh-cw" class="me-2" style="width: 16px; height: 16px;"></i>
+                    Refresh Data
+                </a>
+            </li>
+            <li>
+                <a class="dropdown-item d-flex align-items-center" href="#" onclick="forceRefresh(); return false;">
+                    <i data-feather="rotate-ccw" class="me-2" style="width: 16px; height: 16px;"></i>
+                    Force Refresh
+                </a>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+                <span class="dropdown-item-text text-muted small">
+                    <i data-feather="clock" class="me-1" style="width: 12px; height: 12px;"></i>
+                    Last updated: <span id="lastUpdated">Loading...</span>
+                </span>
+            </li>
+        </ul>
+    </div>
+</div>
 <!-- Mobile-First Status Cards -->
 <div class="row g-2 mb-4 status-cards-row">
-    <div class="col-3">
+    <div class="col-4">
         <div class="card border-0 bg-success bg-opacity-10 h-100">
             <div class="card-body text-center p-2">
                 <i data-feather="trending-up" class="text-success mb-1" style="width: 16px; height: 16px;"></i>
@@ -12,7 +42,7 @@
             </div>
         </div>
     </div>
-    <div class="col-3">
+    <div class="col-4">
         <div class="card border-0 bg-info bg-opacity-10 h-100">
             <div class="card-body text-center p-2">
                 <i data-feather="percent" class="text-info mb-1" style="width: 16px; height: 16px;"></i>
@@ -23,21 +53,12 @@
             </div>
         </div>
     </div>
-    <div class="col-3">
-        <div class="card border-0 bg-warning bg-opacity-10 h-100">
-            <div class="card-body text-center p-2">
-                <i data-feather="clock" class="text-warning mb-1" style="width: 16px; height: 16px;"></i>
-                <div class="fw-bold text-warning fs-5 mb-1" id="closingSoonCount">0</div>
-                <small class="text-dark-emphasis" style="font-size: 0.7rem;">Closing Soon</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-3">
-        <div class="card border-0 bg-primary bg-opacity-10 h-100">
+    <div class="col-4">
+        <div class="card border-0 bg-primary bg-opacity-10 h-100 cursor-pointer" onclick="enableNotifications()" title="Click to enable GMP notifications">
             <div class="card-body text-center p-2">
                 <i data-feather="bell" class="text-primary mb-1" style="width: 16px; height: 16px;"></i>
                 <div class="fw-bold text-primary fs-5 mb-1" id="notificationStatus">
-                    <span class="badge bg-secondary rounded-pill px-1 cursor-pointer" style="font-size: 0.6rem;" onclick="enableNotifications()" title="Click to enable notifications">OFF</span>
+                    <span class="badge bg-secondary rounded-pill px-1" style="font-size: 0.6rem;">OFF</span>
                 </div>
                 <small class="text-dark-emphasis" style="font-size: 0.7rem;">Alerts</small>
             </div>
@@ -65,9 +86,9 @@
     </div>
 </div>
 
-<!-- Mobile-Optimized Search and Filters -->
+<!-- Streamlined Search and Filters - Always Horizontal -->
 <div class="row g-2 mb-4">
-    <div class="col-12 col-md-6">
+    <div class="col-8">
         <div class="input-group">
             <span class="input-group-text bg-white border-end-0">
                 <i data-feather="search" style="width: 16px; height: 16px;"></i>
@@ -75,25 +96,13 @@
             <input type="text" class="form-control border-start-0 ps-0" id="searchInput" placeholder="Search IPO...">
         </div>
     </div>
-    <div class="col-6 col-md-4">
+    <div class="col-4">
         <select class="form-select" id="gmpFilter">
             <option value="">All GMPs</option>
             <option value="high">High (>50%)</option>
             <option value="medium">Medium (20-50%)</option>
             <option value="low">Low (<20%)</option>
         </select>
-    </div>
-    <div class="col-3 col-md-2">
-        <button class="btn btn-primary w-100 rounded-pill" onclick="refreshData()">
-            <i data-feather="refresh-cw" class="me-1" style="width: 16px; height: 16px;"></i>
-            <span class="d-none d-md-inline">Data</span>
-        </button>
-    </div>
-    <div class="col-3 col-md-1">
-        <button class="btn btn-warning w-100 rounded-pill" onclick="forceRefresh()" title="Force refresh to clear cache">
-            <i data-feather="rotate-ccw" style="width: 16px; height: 16px;"></i>
-            <span class="d-none d-lg-inline">Force</span>
-        </button>
     </div>
 </div>
 
@@ -730,7 +739,7 @@ function installRibbonAction() {
 // Enable notifications function
 function enableNotifications() {
     if (!('Notification' in window)) {
-        alert('This browser does not support desktop notifications');
+        showNotificationAlert('This browser does not support desktop notifications', 'error');
         return;
     }
     
@@ -743,12 +752,61 @@ function enableNotifications() {
             if (permission === 'granted') {
                 subscribeToPush();
                 updateNotificationStatus('ON');
+                showNotificationAlert('✓ GMP Alerts Enabled!\n\nYou will receive push notifications for IPOs with 30%+ GMP at 10:00 AM on their last application day.\n\nNever miss high-potential IPO opportunities!', 'success');
             } else {
-                alert('Notifications permission denied. Please enable in browser settings.');
+                showNotificationAlert('Notifications permission denied. Please enable in browser settings.', 'warning');
             }
         });
     } else {
-        alert('Notifications are blocked. Please enable them in your browser settings.');
+        showNotificationAlert('Notifications are blocked. Please enable them in your browser settings.', 'warning');
+    }
+}
+
+// Show professional notification alert
+function showNotificationAlert(message, type = 'info') {
+    const alertClass = type === 'success' ? 'alert-success' : 
+                      type === 'warning' ? 'alert-warning' : 
+                      type === 'error' ? 'alert-danger' : 'alert-info';
+    
+    const icon = type === 'success' ? 'check-circle' : 
+                type === 'warning' ? 'alert-triangle' : 
+                type === 'error' ? 'x-circle' : 'info';
+    
+    // Remove existing alert if any
+    const existingAlert = document.querySelector('.notification-alert');
+    if (existingAlert) {
+        existingAlert.remove();
+    }
+    
+    // Create new alert
+    const alertHtml = `
+        <div class="alert ${alertClass} border-0 shadow-sm mb-4 notification-alert" style="border-radius: 12px;">
+            <div class="d-flex align-items-start">
+                <div class="me-3">
+                    <i data-feather="${icon}" style="width: 20px; height: 20px;"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <div class="fw-semibold mb-1">Notification Setup</div>
+                    <div class="small" style="white-space: pre-line;">${message}</div>
+                </div>
+                <button class="btn-close ms-2" onclick="this.parentElement.parentElement.remove()" aria-label="Close"></button>
+            </div>
+        </div>
+    `;
+    
+    // Insert after install ribbon
+    const installRibbon = document.getElementById('installRibbon');
+    if (installRibbon) {
+        installRibbon.insertAdjacentHTML('afterend', alertHtml);
+        feather.replace();
+        
+        // Auto remove success messages after 5 seconds
+        if (type === 'success') {
+            setTimeout(() => {
+                const alert = document.querySelector('.notification-alert');
+                if (alert) alert.remove();
+            }, 5000);
+        }
     }
 }
 
@@ -784,20 +842,38 @@ function subscribeToPush() {
 // Update notification status display
 function updateNotificationStatus(status) {
     const statusElement = document.getElementById('notificationStatus');
+    const alertsCard = statusElement?.closest('.card');
+    
     if (statusElement) {
         const badge = statusElement.querySelector('.badge');
         if (badge) {
             badge.textContent = status;
             if (status === 'ON') {
-                badge.className = 'badge bg-success rounded-pill px-1 cursor-pointer';
-                badge.title = 'Notifications enabled';
-                badge.onclick = null; // Remove click handler when ON
+                badge.className = 'badge bg-success rounded-pill px-1';
+                badge.title = 'GMP alerts enabled';
+                // Update card styling when enabled
+                if (alertsCard) {
+                    alertsCard.onclick = null;
+                    alertsCard.style.cursor = 'default';
+                    alertsCard.title = 'GMP alerts are active';
+                }
             } else {
-                badge.className = 'badge bg-secondary rounded-pill px-1 cursor-pointer';
+                badge.className = 'badge bg-secondary rounded-pill px-1';
                 badge.title = 'Click to enable notifications';
-                badge.onclick = enableNotifications;
+                // Keep card clickable when disabled
+                if (alertsCard) {
+                    alertsCard.onclick = enableNotifications;
+                    alertsCard.style.cursor = 'pointer';
+                    alertsCard.title = 'Click to enable GMP notifications';
+                }
             }
         }
+    }
+    
+    // Update last updated time in hamburger menu
+    const lastUpdated = document.getElementById('lastUpdated');
+    if (lastUpdated && status === 'ON') {
+        lastUpdated.textContent = 'Alerts enabled at ' + new Date().toLocaleTimeString();
     }
 }
 

@@ -338,6 +338,89 @@ footer {
   filter: invert(1) grayscale(100%) brightness(200%);
 }
 
+/* Professional hamburger menu styling */
+.dropdown-menu {
+  border: 0;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+  margin-top: 0.5rem;
+}
+
+.dropdown-item {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  margin: 0.25rem;
+  transition: all 0.2s ease;
+}
+
+.dropdown-item:hover {
+  background-color: rgba(13, 110, 253, 0.1);
+  color: #0d6efd;
+  transform: translateY(-1px);
+}
+
+.dropdown-item:active {
+  background-color: rgba(13, 110, 253, 0.15);
+  transform: translateY(0);
+}
+
+/* Enhanced status cards */
+.status-cards-row .card {
+  transition: all 0.3s ease;
+}
+
+.status-cards-row .card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.1);
+}
+
+.status-cards-row .card.cursor-pointer:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 0.5rem 1rem rgba(13, 110, 253, 0.2);
+}
+
+/* Professional search styling */
+.input-group .form-control {
+  border: 1px solid #dee2e6;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.input-group .form-control:focus {
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+}
+
+/* Professional alert styling */
+.notification-alert {
+  border-left: 4px solid currentColor;
+  animation: slideInDown 0.5s ease;
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Mobile enhancements */
+@media (max-width: 768px) {
+  .status-cards-row .card-body {
+    padding: 1rem !important;
+  }
+  
+  .status-cards-row .fs-5 {
+    font-size: 1.1rem !important;
+  }
+  
+  .dropdown-menu {
+    min-width: 200px;
+  }
+}
+
 .skeleton {
   background: linear-gradient(90deg, #f1f3f4, #e9ecef, #f1f3f4);
   background-size: 200% 100%;
