@@ -642,6 +642,8 @@ function installRibbonAction() {
             deferredPrompt = null;
         });
     } else {
+        // Show modal if beforeinstallprompt hasn't fired yet
+        console.log('beforeinstallprompt not available, showing modal');
         showInstallPrompt();
     }
 }
@@ -820,11 +822,15 @@ function showInstallPrompt() {
         if (isAndroid()) {
             androidInstall.classList.remove('d-none');
             iosInstall.classList.add('d-none');
-            // Hide install button if no deferredPrompt
+            // Show helpful message if no deferredPrompt
             const installButton = document.getElementById('installButton');
             if (!deferredPrompt) {
-                installButton.innerHTML = '<i data-feather="info" class="me-2" style="width: 18px; height: 18px;"></i>Use browser menu to install';
-                installButton.disabled = true;
+                installButton.innerHTML = '<i data-feather="smartphone" class="me-2" style="width: 18px; height: 18px;"></i>Add to Home Screen';
+                installButton.disabled = false;
+                installButton.onclick = () => {
+                    // Give instructions for manual installation
+                    alert('To install this app:\n\n1. Tap the menu button (...) in your browser\n2. Look for "Add to Home screen" or "Install app"\n3. Tap it and confirm installation\n\nAlternatively, you can bookmark this page and add it to your home screen manually.');
+                };
             }
         } else {
             iosInstall.classList.remove('d-none');
@@ -856,12 +862,13 @@ window.addEventListener('beforeinstallprompt', (e) => {
     // Store the event
     deferredPrompt = e;
     
-    // Show install prompt after user has been on the page for 30 seconds
-    setTimeout(() => {
-        if (!isStandalone && isAndroid()) {
-            showInstallPrompt();
-        }
-    }, 30000); // 30 seconds
+    // Update install ribbon text to show direct install is possible
+    const installRibbonText = document.getElementById('installRibbonText');
+    if (installRibbonText && isAndroid()) {
+        installRibbonText.textContent = 'Install Now';
+    }
+    
+    console.log('Install prompt is now available');
 });
 
 // Handle app installation
