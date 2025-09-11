@@ -49,9 +49,5 @@ externalPort = 80
 localPort = 39069
 externalPort = 3000
 
-[[ports]]
-localPort = 40835
-externalPort = 3001
-
 [agent]
 integrations = ["web_scraper==1.0.0", "styling_replit==1.0.0"]

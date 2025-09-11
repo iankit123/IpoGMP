@@ -610,11 +610,57 @@ function showInstallRibbon() {
         const ribbonText = document.getElementById('installRibbonText');
         if (isIOS()) {
             ribbonText.textContent = 'Guide';
+        } else if (isSamsungBrowser()) {
+            ribbonText.textContent = 'Add to Home';
+        } else if (deferredPrompt) {
+            ribbonText.textContent = 'Install Now';
         } else {
             ribbonText.textContent = 'Install';
         }
         
         feather.replace();
+    }
+}
+
+// Samsung Internet specific install guide
+function showSamsungInstallGuide() {
+    const modal = `
+        <div class="alert alert-info border-0 shadow-sm mb-4" style="border-radius: 12px;">
+            <div class="row align-items-center">
+                <div class="col-auto">
+                    <i data-feather="smartphone" class="text-info" style="width: 24px; height: 24px;"></i>
+                </div>
+                <div class="col">
+                    <div class="fw-semibold text-info mb-2">Install on Samsung Internet</div>
+                    <div class="small text-info-emphasis">
+                        <div class="d-flex align-items-start mb-1">
+                            <span class="badge bg-info rounded-pill me-2" style="font-size: 0.7rem;">1</span>
+                            <span>Tap the <strong>Menu</strong> button (three lines) ☰</span>
+                        </div>
+                        <div class="d-flex align-items-start mb-1">
+                            <span class="badge bg-info rounded-pill me-2" style="font-size: 0.7rem;">2</span>
+                            <span>Look for <strong>"Add page to"</strong> or <strong>"Add to Home screen"</strong></span>
+                        </div>
+                        <div class="d-flex align-items-start">
+                            <span class="badge bg-info rounded-pill me-2" style="font-size: 0.7rem;">3</span>
+                            <span>Tap it and confirm installation</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-auto">
+                    <button class="btn-close" onclick="this.parentElement.parentElement.parentElement.remove()" aria-label="Close"></button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Insert the modal after the install ribbon
+    const installRibbon = document.getElementById('installRibbon');
+    if (installRibbon) {
+        installRibbon.insertAdjacentHTML('afterend', modal);
+        feather.replace();
+        // Hide the install ribbon since we're showing specific instructions
+        hideInstallRibbon();
     }
 }
 
@@ -633,7 +679,7 @@ function installRibbonAction() {
     if (isIOS()) {
         showInstallPrompt();
     } else if (deferredPrompt) {
-        // Direct install for Android
+        // Direct install for Android Chrome
         deferredPrompt.prompt().then(result => {
             console.log('Install prompt result:', result.outcome);
             if (result.outcome === 'accepted') {
@@ -641,8 +687,11 @@ function installRibbonAction() {
             }
             deferredPrompt = null;
         });
+    } else if (isSamsungBrowser()) {
+        // Samsung Internet specific instructions
+        showSamsungInstallGuide();
     } else {
-        // Show modal if beforeinstallprompt hasn't fired yet
+        // Show modal for other browsers
         console.log('beforeinstallprompt not available, showing modal');
         showInstallPrompt();
     }
@@ -801,6 +850,18 @@ function isAndroid() {
     return /Android/.test(navigator.userAgent);
 }
 
+// Check if device is using Samsung Internet
+function isSamsungBrowser() {
+    return navigator.userAgent.includes('SamsungBrowser');
+}
+
+// Check if device is Android Chrome (better PWA support)
+function isAndroidChrome() {
+    return /Android/.test(navigator.userAgent) && 
+           /Chrome/.test(navigator.userAgent) && 
+           !isSamsungBrowser();
+}
+
 // Show install prompt modal
 function showInstallPrompt() {
     if (isStandalone) {
@@ -825,12 +886,18 @@ function showInstallPrompt() {
             // Show helpful message if no deferredPrompt
             const installButton = document.getElementById('installButton');
             if (!deferredPrompt) {
-                installButton.innerHTML = '<i data-feather="smartphone" class="me-2" style="width: 18px; height: 18px;"></i>Add to Home Screen';
+                if (isSamsungBrowser()) {
+                    installButton.innerHTML = '<i data-feather="smartphone" class="me-2" style="width: 18px; height: 18px;"></i>Add to Home Screen';
+                    installButton.onclick = () => {
+                        alert('Samsung Internet Installation:\n\n1. Tap the Menu button (☰) in your browser\n2. Look for "Add page to" or "Add to Home screen"\n3. Tap it and confirm installation\n\nThis will add the IPO Tracker to your home screen with full app functionality!');
+                    };
+                } else {
+                    installButton.innerHTML = '<i data-feather="smartphone" class="me-2" style="width: 18px; height: 18px;"></i>Add to Home Screen';
+                    installButton.onclick = () => {
+                        alert('To install this app:\n\n1. Tap the menu button (⋮) in your browser\n2. Look for "Add to Home screen" or "Install app"\n3. Tap it and confirm installation\n\nThis will add the IPO Tracker to your home screen!');
+                    };
+                }
                 installButton.disabled = false;
-                installButton.onclick = () => {
-                    // Give instructions for manual installation
-                    alert('To install this app:\n\n1. Tap the menu button (...) in your browser\n2. Look for "Add to Home screen" or "Install app"\n3. Tap it and confirm installation\n\nAlternatively, you can bookmark this page and add it to your home screen manually.');
-                };
             }
         } else {
             iosInstall.classList.remove('d-none');
