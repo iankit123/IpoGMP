@@ -16,7 +16,8 @@ class NotificationManager:
         self.vapid_private_key = os.environ.get("VAPID_PRIVATE_KEY")
         self.vapid_public_key = os.environ.get("VAPID_PUBLIC_KEY") 
         self.vapid_claims = {
-            "sub": "mailto:admin@ipotracker.com"
+            "sub": "mailto:admin@ipotracker.com",
+            "aud": "https://fcm.googleapis.com"
         } if self.vapid_private_key else None
     
     def send_notification(self, subscription_info, message_data):
