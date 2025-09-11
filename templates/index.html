@@ -743,29 +743,31 @@ async function enableNotifications() {
         return;
     }
     
-    if (Notification.permission === 'granted') {
-        // Already granted, proceed with push subscription
-        const success = await subscribeToPush();
-        if (success) {
-            showNotificationAlert('✓ GMP Alerts Enabled!\n\nYou will receive push notifications for IPOs with 30%+ GMP at 10:00 AM on their last application day.\n\nNever miss high-potential IPO opportunities!', 'success');
-        }
-    } else if (Notification.permission !== 'denied') {
-        // Request permission
+    // Always request permission explicitly - this ensures the popup shows
+    if (Notification.permission !== 'granted') {
+        // Request permission with popup
         try {
             const permission = await Notification.requestPermission();
-            if (permission === 'granted') {
-                const success = await subscribeToPush();
-                if (success) {
-                    showNotificationAlert('✓ GMP Alerts Enabled!\n\nYou will receive push notifications for IPOs with 30%+ GMP at 10:00 AM on their last application day.\n\nNever miss high-potential IPO opportunities!', 'success');
-                }
-            } else {
+            if (permission !== 'granted') {
                 showNotificationAlert('Notifications permission denied. Please enable in browser settings.', 'warning');
+                return;
             }
         } catch (error) {
             showNotificationAlert('Error requesting permission: ' + error.message, 'error');
+            return;
         }
+    }
+    
+    // Now proceed with subscription (permission is guaranteed to be granted)
+    const success = await subscribeToPush();
+    if (success) {
+        // Explicitly update UI status after successful subscription
+        updateNotificationStatus('ON');
+        showNotificationAlert('✓ GMP Alerts Enabled!\n\nYou will receive push notifications for IPOs with 30%+ GMP at 10:00 AM on their last application day.\n\nNever miss high-potential IPO opportunities!', 'success');
     } else {
-        showNotificationAlert('Notifications are blocked. Please enable them in your browser settings.', 'warning');
+        // Explicitly set status to OFF on failure and show error
+        updateNotificationStatus('OFF');
+        showNotificationAlert('Failed to enable notifications. Please try again.', 'error');
     }
 }
 
@@ -817,6 +819,47 @@ function showNotificationAlert(message, type = 'info') {
     }
 }
 
+// Initialize notification system with proper service worker registration
+async function initializeNotificationSystem() {
+    try {
+        // First, ensure service worker is registered with root scope for better PWA control
+        if ('serviceWorker' in navigator) {
+            await navigator.serviceWorker.register('/static/sw.js', { scope: '/' });
+            console.log('✓ Service worker registered for notifications');
+        }
+        
+        // Now check existing notification status
+        await checkExistingNotificationStatus();
+    } catch (error) {
+        console.error('❌ Error initializing notification system:', error);
+        updateNotificationStatus('OFF');
+    }
+}
+
+// Check existing notification status on page load
+async function checkExistingNotificationStatus() {
+    if ('serviceWorker' in navigator && 'PushManager' in window && Notification.permission === 'granted') {
+        try {
+            const registration = await navigator.serviceWorker.ready;
+            const subscription = await registration.pushManager.getSubscription();
+            
+            if (subscription) {
+                // User has an active subscription
+                console.log('✓ Existing push subscription found');
+                updateNotificationStatus('ON');
+            } else {
+                console.log('ℹ No existing subscription found');
+                updateNotificationStatus('OFF');
+            }
+        } catch (error) {
+            console.log('ℹ Error checking existing subscription:', error);
+            updateNotificationStatus('OFF');
+        }
+    } else {
+        updateNotificationStatus('OFF');
+    }
+}
+
 // Subscribe to push notifications
 async function subscribeToPush() {
     if ('serviceWorker' in navigator && 'PushManager' in window) {
@@ -834,11 +877,14 @@ async function subscribeToPush() {
             
             console.log('✓ VAPID public key retrieved successfully');
             
+            // Convert VAPID key from base64 string to Uint8Array (required for Samsung Internet/Chrome)
+            const applicationServerKey = urlBase64ToUint8Array(vapidData.publicKey);
+            
             // Now subscribe with the correct VAPID key
             const registration = await navigator.serviceWorker.ready;
             const subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
-                applicationServerKey: vapidData.publicKey
+                applicationServerKey: applicationServerKey
             });
             
             console.log('✓ Push subscription created successfully');
@@ -862,7 +908,7 @@ async function subscribeToPush() {
                     // Empty body is fine for success (e.g., 204 No Content)
                     console.log('No JSON response body (empty response is OK)');
                 }
-                updateNotificationStatus('ON');
+                // Don't update status here - it will be updated in enableNotifications()
                 return true;
             } else {
                 let errorMessage = 'Failed to save subscription to server';
@@ -992,8 +1038,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Don't automatically show ON status - only show ON after user explicitly enables notifications
-    // Initial status should remain OFF until user successfully subscribes
+    // Initialize service worker and check notification status
+    initializeNotificationSystem();
 });
 
 // PWA Install Functionality
@@ -1070,15 +1116,27 @@ function showInstallPrompt() {
     feather.replace(); // Update feather icons
 }
 
-// PWA and Service Worker
+// Utility function to convert VAPID key from base64 to Uint8Array
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+        .replace(/\-/g, '+')
+        .replace(/_/g, '/');
+
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
+
+// PWA and Service Worker (simplified - main registration happens in initializeNotificationSystem)
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', function() {
-        navigator.serviceWorker.register('/static/sw.js')
-        .then(function(registration) {
-            console.log('SW registered: ', registration);
-        }, function(registrationError) {
-            console.log('SW registration failed: ', registrationError);
-        });
+        // Service worker registration is now handled in initializeNotificationSystem()
+        console.log('Service worker will be registered by notification system');
     });
 }
 
