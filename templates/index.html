@@ -680,13 +680,27 @@ function installRibbonAction() {
         showInstallPrompt();
     } else if (deferredPrompt) {
         // Direct install for Android Chrome
+        console.log('🚀 Triggering PWA install prompt');
         deferredPrompt.prompt().then(result => {
             console.log('Install prompt result:', result.outcome);
             if (result.outcome === 'accepted') {
+                console.log('✅ User accepted PWA installation');
                 hideInstallRibbon();
+            } else {
+                console.log('❌ User dismissed PWA installation');
             }
             deferredPrompt = null;
+        }).catch(error => {
+            console.error('❌ Error showing install prompt:', error);
         });
+    } else if (isAndroidChrome()) {
+        // Chrome on Android but no beforeinstallprompt yet
+        if (userEngagementTime < 30) {
+            const remainingTime = 30 - userEngagementTime;
+            alert(`Almost ready to install! ⏱️\n\nChrome needs ${remainingTime} more seconds of interaction before the install option becomes available.\n\nPlease browse the app for ${remainingTime} more seconds, then try again.`);
+        } else {
+            alert('PWA installation not available yet.\n\nThis might be because:\n• You already have the app installed\n• Browser requirements not fully met\n• Try refreshing the page\n\nFor now, you can bookmark this page and add it to your home screen manually.');
+        }
     } else if (isSamsungBrowser()) {
         // Samsung Internet specific instructions
         showSamsungInstallGuide();
@@ -819,14 +833,23 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Show install ribbon if not hidden and not standalone
-    if (!sessionStorage.getItem('installRibbonHidden') && !isStandalone) {
-        setTimeout(showInstallRibbon, 5000); // Show after 5 seconds
-    }
-    
-    // Ensure install ribbon shows by default for non-installed users
-    if (!isStandalone && !sessionStorage.getItem('installRibbonHidden')) {
-        setTimeout(showInstallRibbon, 3000); // Show after 3 seconds
+    // Start tracking user engagement for PWA install
+    if (!isStandalone) {
+        trackEngagement();
+        
+        // Show install ribbon after a few seconds for all non-installed users
+        if (!sessionStorage.getItem('installRibbonHidden')) {
+            setTimeout(showInstallRibbon, 3000); // Show after 3 seconds
+        }
+        
+        // For Chrome on Android, show a helpful message about engagement requirement
+        if (isAndroidChrome()) {
+            setTimeout(() => {
+                if (!deferredPrompt && !sessionStorage.getItem('installRibbonHidden')) {
+                    console.log('ℹ️ Chrome requires 30+ seconds of engagement before showing install prompt');
+                }
+            }, 10000);
+        }
     }
     
     // Check current notification status
@@ -921,9 +944,35 @@ if ('serviceWorker' in navigator) {
     });
 }
 
-// Handle beforeinstallprompt event (Android)
+// Debug PWA installation readiness
+let userEngagementTime = 0;
+let engagementTimer;
+
+// Track user engagement
+function trackEngagement() {
+    engagementTimer = setInterval(() => {
+        userEngagementTime += 1;
+        console.log(`User engagement: ${userEngagementTime} seconds`);
+        
+        // Show engagement status in console
+        if (userEngagementTime === 30) {
+            console.log('✓ 30 seconds engagement reached - PWA install should be available soon');
+        }
+        
+        if (userEngagementTime >= 30 && !deferredPrompt && isAndroidChrome()) {
+            console.log('⚠️ 30+ seconds engagement but no beforeinstallprompt event yet');
+            console.log('PWA Requirements check:');
+            console.log('- HTTPS:', location.protocol === 'https:');
+            console.log('- Service Worker:', 'serviceWorker' in navigator);
+            console.log('- Manifest linked:', document.querySelector('link[rel="manifest"]') !== null);
+            console.log('- Not installed:', !isStandalone);
+        }
+    }, 1000);
+}
+
+// Handle beforeinstallprompt event (Android Chrome)
 window.addEventListener('beforeinstallprompt', (e) => {
-    console.log('beforeinstallprompt fired');
+    console.log('🎉 beforeinstallprompt fired after', userEngagementTime, 'seconds');
     // Prevent default mini-infobar
     e.preventDefault();
     // Store the event
@@ -935,7 +984,15 @@ window.addEventListener('beforeinstallprompt', (e) => {
         installRibbonText.textContent = 'Install Now';
     }
     
-    console.log('Install prompt is now available');
+    // Show immediate notification that install is ready
+    if (isAndroidChrome()) {
+        const ribbon = document.getElementById('installRibbon');
+        if (ribbon && ribbon.classList.contains('d-none')) {
+            showInstallRibbon();
+        }
+    }
+    
+    console.log('✅ Install prompt is now available - user can install the app!');
 });
 
 // Handle app installation
