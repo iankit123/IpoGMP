@@ -737,7 +737,7 @@ function installRibbonAction() {
 }
 
 // Enable notifications function
-function enableNotifications() {
+async function enableNotifications() {
     if (!('Notification' in window)) {
         showNotificationAlert('This browser does not support desktop notifications', 'error');
         return;
@@ -745,18 +745,25 @@ function enableNotifications() {
     
     if (Notification.permission === 'granted') {
         // Already granted, proceed with push subscription
-        subscribeToPush();
+        const success = await subscribeToPush();
+        if (success) {
+            showNotificationAlert('✓ GMP Alerts Enabled!\n\nYou will receive push notifications for IPOs with 30%+ GMP at 10:00 AM on their last application day.\n\nNever miss high-potential IPO opportunities!', 'success');
+        }
     } else if (Notification.permission !== 'denied') {
         // Request permission
-        Notification.requestPermission().then(permission => {
+        try {
+            const permission = await Notification.requestPermission();
             if (permission === 'granted') {
-                subscribeToPush();
-                updateNotificationStatus('ON');
-                showNotificationAlert('✓ GMP Alerts Enabled!\n\nYou will receive push notifications for IPOs with 30%+ GMP at 10:00 AM on their last application day.\n\nNever miss high-potential IPO opportunities!', 'success');
+                const success = await subscribeToPush();
+                if (success) {
+                    showNotificationAlert('✓ GMP Alerts Enabled!\n\nYou will receive push notifications for IPOs with 30%+ GMP at 10:00 AM on their last application day.\n\nNever miss high-potential IPO opportunities!', 'success');
+                }
             } else {
                 showNotificationAlert('Notifications permission denied. Please enable in browser settings.', 'warning');
             }
-        });
+        } catch (error) {
+            showNotificationAlert('Error requesting permission: ' + error.message, 'error');
+        }
     } else {
         showNotificationAlert('Notifications are blocked. Please enable them in your browser settings.', 'warning');
     }
@@ -846,11 +853,27 @@ async function subscribeToPush() {
             });
             
             if (subscribeResponse.ok) {
+                // Handle success (200, 201, 204 are all valid)
+                console.log('✓ Push subscription saved to server (status:', subscribeResponse.status, ')');
+                try {
+                    const result = await subscribeResponse.json();
+                    console.log('Server response:', result);
+                } catch (parseError) {
+                    // Empty body is fine for success (e.g., 204 No Content)
+                    console.log('No JSON response body (empty response is OK)');
+                }
                 updateNotificationStatus('ON');
-                console.log('✓ Push subscription saved to server');
                 return true;
             } else {
-                throw new Error('Failed to save subscription to server');
+                let errorMessage = 'Failed to save subscription to server';
+                try {
+                    const errorData = await subscribeResponse.json();
+                    errorMessage = errorData.error || errorMessage;
+                } catch (parseError) {
+                    // If can't parse JSON, use status text
+                    errorMessage = subscribeResponse.statusText || errorMessage;
+                }
+                throw new Error(errorMessage);
             }
             
         } catch (error) {
@@ -969,10 +992,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Check current notification status
-    if ('Notification' in window && Notification.permission === 'granted') {
-        updateNotificationStatus('ON');
-    }
+    // Don't automatically show ON status - only show ON after user explicitly enables notifications
+    // Initial status should remain OFF until user successfully subscribes
 });
 
 // PWA Install Functionality
