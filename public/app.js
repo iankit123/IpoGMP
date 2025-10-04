@@ -312,6 +312,74 @@ function showError(message) {
     feather.replace()
 }
 
+// Helper function to detect the correct API URL
+async function detectApiUrl() {
+    const apiUrls = [
+        'http://localhost:3001/api/scrape',
+        'http://127.0.0.1:3001/api/scrape',
+        'http://192.168.1.2:3001/api/scrape',
+        `http://${window.location.hostname}:3001/api/scrape`
+    ]
+    
+    for (const apiUrl of apiUrls) {
+        try {
+            const response = await fetch(apiUrl.replace('/api/scrape', '/health'), {
+                method: 'GET',
+                signal: AbortSignal.timeout(5000) // 5 second timeout
+            })
+            
+            if (response.ok) {
+                console.log(`✅ Found working API URL: ${apiUrl}`)
+                return apiUrl
+            }
+        } catch (error) {
+            console.log(`❌ API URL not accessible: ${apiUrl}`)
+        }
+    }
+    
+    return null
+}
+
+// Make it available globally for debugging
+window.detectApiUrl = detectApiUrl
+
+// Debug function to help troubleshoot API connectivity
+window.debugApiConnectivity = async function() {
+    console.log('🔍 Debugging API connectivity...')
+    console.log('Current hostname:', window.location.hostname)
+    console.log('Current URL:', window.location.href)
+    
+    const apiUrls = [
+        'http://localhost:3001/api/scrape',
+        'http://127.0.0.1:3001/api/scrape',
+        'http://192.168.1.2:3001/api/scrape',
+        `http://${window.location.hostname}:3001/api/scrape`
+    ]
+    
+    console.log('Testing API URLs:')
+    for (const apiUrl of apiUrls) {
+        const healthUrl = apiUrl.replace('/api/scrape', '/health')
+        try {
+            const response = await fetch(healthUrl, {
+                method: 'GET',
+                signal: AbortSignal.timeout(5000)
+            })
+            console.log(`✅ ${apiUrl} - Status: ${response.status}`)
+        } catch (error) {
+            console.log(`❌ ${apiUrl} - Error: ${error.message}`)
+        }
+    }
+    
+    const workingUrl = await detectApiUrl()
+    if (workingUrl) {
+        console.log('✅ Working API URL found:', workingUrl)
+        alert('✅ API connectivity test passed!\n\nWorking URL: ' + workingUrl)
+    } else {
+        console.log('❌ No working API URL found')
+        alert('❌ API connectivity test failed!\n\nPlease check:\n1. Scraper API is running: npm run api\n2. You\'re on the same network\n3. Firewall settings')
+    }
+}
+
 // Menu functions
 async function refreshData() {
     try {
@@ -332,17 +400,27 @@ async function refreshData() {
             return
         }
         
-        // Local development: Call local scraper API (use computer's IP for mobile access)
-        const apiUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-            ? 'http://localhost:3001/api/scrape'
-            : 'http://192.168.1.2:3001/api/scrape'
+        // Local development: Call local scraper API with dynamic URL detection
+        const workingApiUrl = await detectApiUrl()
         
-        const response = await fetch(apiUrl, {
+        if (!workingApiUrl) {
+            throw new Error('Could not find a working scraper API URL. Please check:\n1. Scraper API is running: npm run api\n2. You\'re on the same network as the server\n3. Firewall is not blocking port 3001')
+        }
+        
+        console.log(`🔄 Using API URL: ${workingApiUrl}`)
+        
+        const response = await fetch(workingApiUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
-            }
+            },
+            // Add timeout to prevent hanging
+            signal: AbortSignal.timeout(10000) // 10 second timeout
         })
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        }
         
         const result = await response.json()
         
@@ -359,7 +437,7 @@ async function refreshData() {
         
     } catch (error) {
         console.error('❌ Error refreshing data:', error)
-        alert('❌ Failed to refresh data.\n\nMake sure the scraper API is running:\nnpm run api')
+        alert('❌ Failed to refresh data.\n\nPossible solutions:\n1. Make sure the scraper API is running: npm run api\n2. Check if you\'re on the same network as the server\n3. Try accessing from localhost:8000 instead\n\nError details: ' + error.message)
         showLoading(false)
     }
 }
