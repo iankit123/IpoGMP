@@ -321,8 +321,12 @@ async function refreshData() {
         const originalContent = document.getElementById('ipo-container').innerHTML
         showLoading(true)
         
-        // Call local scraper API
-        const response = await fetch('http://localhost:3001/api/scrape', {
+        // Call local scraper API (use computer's IP for mobile access)
+        const apiUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+            ? 'http://localhost:3001/api/scrape'
+            : 'http://192.168.1.2:3001/api/scrape'
+        
+        const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

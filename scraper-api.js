@@ -55,8 +55,9 @@ app.post('/api/scrape', (req, res) => {
   })
 })
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 IPO Scraper API running on http://localhost:${PORT}`)
   console.log(`   POST http://localhost:${PORT}/api/scrape - Trigger scraper`)
+  console.log(`   Mobile access: http://192.168.1.2:${PORT}/api/scrape`)
 })
 
