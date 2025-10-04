@@ -321,7 +321,18 @@ async function refreshData() {
         const originalContent = document.getElementById('ipo-container').innerHTML
         showLoading(true)
         
-        // Call local scraper API (use computer's IP for mobile access)
+        // Check if we're on Netlify (production) or local development
+        const isProduction = window.location.hostname.includes('netlify.app')
+        
+        if (isProduction) {
+            // On Netlify, just reload data from Supabase (no local scraper)
+            console.log('🔄 Production mode: Reloading data from Supabase...')
+            await loadIPOData()
+            alert('✅ Data refreshed from Supabase!')
+            return
+        }
+        
+        // Local development: Call local scraper API (use computer's IP for mobile access)
         const apiUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
             ? 'http://localhost:3001/api/scrape'
             : 'http://192.168.1.2:3001/api/scrape'
@@ -364,7 +375,18 @@ async function forceRefresh() {
             console.log('🗑️ Cache cleared')
         }
         
-        // Trigger scraper
+        // Check if we're on Netlify (production) or local development
+        const isProduction = window.location.hostname.includes('netlify.app')
+        
+        if (isProduction) {
+            // On Netlify, just reload data from Supabase (no local scraper)
+            console.log('🔄 Production mode: Force refreshing from Supabase...')
+            await loadIPOData()
+            alert('✅ Data force refreshed from Supabase!')
+            return
+        }
+        
+        // Local development: Trigger scraper
         await refreshData()
         
     } catch (error) {
@@ -440,6 +462,20 @@ function setupPWAInstall() {
         hideInstallPrompt()
         localStorage.setItem('pwa-installed', 'true')
     })
+    
+    // For mobile browsers, show install prompt after a delay if not already shown
+    setTimeout(() => {
+        if (!isAppInstalled() && !deferredPrompt) {
+            // Check if we're on mobile and PWA is installable
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+            
+            if (isMobile && !isStandalone) {
+                console.log('Mobile detected, showing manual install prompt')
+                showInstallPrompt()
+            }
+        }
+    }, 3000) // Show after 3 seconds
 }
 
 function showInstallPrompt() {
@@ -470,6 +506,7 @@ function isAppInstalled() {
 
 async function installPWA() {
     if (deferredPrompt) {
+        // Use the browser's install prompt
         deferredPrompt.prompt()
         const { outcome } = await deferredPrompt.userChoice
         console.log(`PWA install outcome: ${outcome}`)
@@ -477,6 +514,20 @@ async function installPWA() {
         
         if (outcome === 'accepted') {
             hideInstallPrompt()
+        }
+    } else {
+        // Fallback for mobile browsers without beforeinstallprompt
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+        
+        if (isMobile) {
+            // Show instructions for manual installation
+            alert(`📱 To install this app on your mobile:\n\n` +
+                  `Android Chrome:\n• Tap menu (⋮) → "Add to Home screen"\n\n` +
+                  `iPhone Safari:\n• Tap Share → "Add to Home Screen"\n\n` +
+                  `The app will work offline after installation!`)
+            hideInstallPrompt()
+        } else {
+            alert('PWA installation not available in this browser. Try Chrome or Edge.')
         }
     }
 }
