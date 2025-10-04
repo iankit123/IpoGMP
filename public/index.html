@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPO GMP Tracker</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Track IPO Grey Market Premium (GMP) data in real-time">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="IPO Tracker">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    
+    <!-- Supabase Client -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --info-color: #3b82f6;
+        }
+        
+        body {
+            background-color: #f8fafc;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            transition: all 0.2s ease-in-out;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        
+        .status-card {
+            background: linear-gradient(135deg, var(--primary-color), #1d4ed8);
+            color: white;
+            border-radius: 16px;
+        }
+        
+        .status-card .card-body {
+            padding: 1.5rem;
+        }
+        
+        .status-number {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .status-label {
+            font-size: 0.875rem;
+            opacity: 0.9;
+        }
+        
+        .ipo-card {
+            border-left: 4px solid var(--primary-color);
+            margin-bottom: 1rem;
+        }
+        
+        .ipo-card .card-body {
+            padding: 1rem;
+        }
+        
+        .ipo-name {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+        }
+        
+        .gmp-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        
+        .gmp-positive {
+            color: var(--success-color);
+        }
+        
+        .gmp-negative {
+            color: var(--danger-color);
+        }
+        
+        .badge-status {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+        }
+        
+        .search-container {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            border-radius: 8px;
+        }
+        
+        .btn-primary:hover {
+            background-color: #1d4ed8;
+            border-color: #1d4ed8;
+        }
+        
+        .loading-spinner {
+            display: none;
+        }
+        
+        .loading-spinner.show {
+            display: inline-block;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: #6b7280;
+        }
+        
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: #d1d5db;
+        }
+        
+        @media (max-width: 768px) {
+            .status-card .card-body {
+                padding: 1rem;
+            }
+            
+            .status-number {
+                font-size: 1.5rem;
+            }
+            
+            .gmp-value {
+                font-size: 1.25rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div class="d-flex align-items-center">
+                <img src="/icons/icon-192.png" alt="IPO Tracker" class="me-3" style="width: 40px; height: 40px;">
+                <h5 class="mb-0 fw-bold text-dark">IPO GMP Tracker</h5>
+            </div>
+            <div class="dropdown">
+                <button class="btn btn-outline-primary btn-sm rounded-pill" type="button" data-bs-toggle="dropdown">
+                    <i data-feather="menu" style="width: 16px; height: 16px;"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0" style="border-radius: 12px;">
+                    <li>
+                        <a class="dropdown-item d-flex align-items-center" href="#" onclick="refreshData(); return false;">
+                            <i data-feather="refresh-cw" class="me-2 text-primary" style="width: 16px; height: 16px;"></i>
+                            Refresh Data
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item d-flex align-items-center" href="#" onclick="forceRefresh(); return false;">
+                            <i data-feather="rotate-ccw" class="me-2 text-warning" style="width: 16px; height: 16px;"></i>
+                            Force Refresh
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item d-flex align-items-center" href="#" onclick="testAlert(); return false;">
+                            <i data-feather="bell" class="me-2 text-info" style="width: 16px; height: 16px;"></i>
+                            Test Alert
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item d-flex align-items-center" href="#" onclick="enableNotifications(); return false;">
+                            <i data-feather="settings" class="me-2 text-success" style="width: 16px; height: 16px;"></i>
+                            Enable Notification
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Status Cards -->
+        <div class="row mb-4">
+            <div class="col-4">
+                <div class="card status-card">
+                    <div class="card-body text-center">
+                        <div class="status-number" id="total-ipos">-</div>
+                        <div class="status-label">Total IPOs</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="card status-card">
+                    <div class="card-body text-center">
+                        <div class="status-number" id="open-ipos">-</div>
+                        <div class="status-label">Open IPOs</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="card status-card">
+                    <div class="card-body text-center">
+                        <div class="status-number" id="upcoming-ipos">-</div>
+                        <div class="status-label">Upcoming IPOs</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PWA Install Prompt -->
+        <div id="pwa-install-prompt" class="alert alert-info d-none" role="alert">
+            <div class="d-flex align-items-center">
+                <i data-feather="download" class="me-3"></i>
+                <div class="flex-grow-1">
+                    <strong>Install IPO GMP Tracker</strong><br>
+                    <small>Get quick access and offline support</small>
+                </div>
+                <button type="button" class="btn btn-primary btn-sm" id="install-btn">
+                    Install Now
+                </button>
+                <button type="button" class="btn-close ms-2" id="dismiss-install"></button>
+            </div>
+        </div>
+
+        <!-- Search and Filter -->
+        <div class="search-container">
+            <div class="row">
+                <div class="col-8">
+                    <input type="text" class="form-control" id="search-input" placeholder="Search IPOs by name...">
+                </div>
+                <div class="col-4">
+                    <select class="form-select" id="gmp-filter">
+                        <option value="">All GMP</option>
+                        <option value="positive">Positive GMP</option>
+                        <option value="negative">Negative GMP</option>
+                        <option value="high">High GMP (>10%)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- IPO Cards -->
+        <div id="ipo-container">
+            <div class="empty-state">
+                <i data-feather="trending-up"></i>
+                <h5>Loading IPO data...</h5>
+                <p>Please wait while we fetch the latest IPO information.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- App Script -->
+    <script src="/app.js"></script>
+    
+    <!-- Initialize Feather Icons -->
+    <script>
+        feather.replace();
+    </script>
+</body>
+</html>
