@@ -97,8 +97,8 @@ class IPOScraper:
                         except ValueError:
                             pass
                 
-                # Look for issue price
-                if 'price' in text.lower() or (i == 1 and '₹' in text):
+                # Look for issue price (typically in the 2nd column after IPO name)
+                if 'price' in text.lower() or (i == 2 and '₹' in text):
                     price_match = re.search(r'[\d,]+', text.replace('₹', '').replace('Rs', '').replace(',', ''))
                     if price_match:
                         try:
@@ -167,8 +167,23 @@ class IPOScraper:
                 return None, None
             
             try:
-                open_date = datetime(current_year, month_num, start_day)
-                close_date = datetime(current_year, month_num, end_day)
+                # Handle cross-month ranges (e.g., "30-6 Oct" means 30 Sep - 6 Oct)
+                if start_day > end_day:
+                    # Cross-month range: start_day is in previous month
+                    if month_num == 1:
+                        prev_month = 12
+                        prev_year = current_year - 1
+                    else:
+                        prev_month = month_num - 1
+                        prev_year = current_year
+                    
+                    open_date = datetime(prev_year, prev_month, start_day)
+                    close_date = datetime(current_year, month_num, end_day)
+                else:
+                    # Same month range
+                    open_date = datetime(current_year, month_num, start_day)
+                    close_date = datetime(current_year, month_num, end_day)
+                
                 return open_date, close_date
             except ValueError:
                 # Handle invalid dates

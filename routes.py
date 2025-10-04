@@ -17,11 +17,12 @@ def index():
         today = datetime.now().date()
         
         # Get only currently open IPOs (must have open/close dates and close_date >= today), ordered by GMP percentage (descending)
+        # Exclude closed IPOs (close_date < today)
         ipos = IPO.query.filter(
             IPO.is_active == True,
             IPO.open_date != None,
             IPO.close_date != None,
-            IPO.close_date >= today
+            IPO.close_date >= today  # Only show IPOs that haven't closed yet
         ).order_by(IPO.gmp_percentage.desc().nullslast()).all()
         
         logger.info(f"Dashboard: Found {len(ipos)} currently open IPOs")
@@ -48,11 +49,12 @@ def api_ipos():
         today = datetime.now().date()
         
         # Get only currently open IPOs (must have open/close dates and close_date >= today)
+        # Exclude closed IPOs (close_date < today)
         ipos = IPO.query.filter(
             IPO.is_active == True,
             IPO.open_date != None,
             IPO.close_date != None,
-            IPO.close_date >= today
+            IPO.close_date >= today  # Only show IPOs that haven't closed yet
         ).order_by(IPO.gmp_percentage.desc().nullslast()).all()
         
         logger.info(f"API: Found {len(ipos)} currently open IPOs")
@@ -123,6 +125,24 @@ def unsubscribe_notifications():
         logger.error(f"Error unsubscribing: {e}")
         db.session.rollback()
         return jsonify({'error': 'Failed to unsubscribe'}), 500
+
+@app.route('/api/last-updated')
+def last_updated():
+    """Get the last updated time for IPO data"""
+    try:
+        from datetime import datetime
+        # Get the most recent IPO update time
+        latest_ipo = IPO.query.filter(IPO.is_active == True).order_by(IPO.last_updated.desc()).first()
+        
+        if latest_ipo and latest_ipo.last_updated:
+            last_updated_time = latest_ipo.last_updated.strftime('%H:%M:%S')
+        else:
+            last_updated_time = "Never"
+        
+        return jsonify({'last_updated': last_updated_time})
+    except Exception as e:
+        logger.error(f"Error getting last updated time: {e}")
+        return jsonify({'last_updated': 'Unknown'})
 
 @app.route('/api/vapid-public-key')
 def vapid_public_key():

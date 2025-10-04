@@ -16,7 +16,7 @@ class NotificationManager:
         self.vapid_private_key = os.environ.get("VAPID_PRIVATE_KEY")
         self.vapid_public_key = os.environ.get("VAPID_PUBLIC_KEY") 
         self.vapid_claims = {
-            "sub": "mailto:admin@ipotracker.com",
+            "sub": os.environ.get("VAPID_SUBJECT", "mailto:ankit_7agarwal@yahoo.in"),
             "aud": "https://fcm.googleapis.com"
         } if self.vapid_private_key else None
     
