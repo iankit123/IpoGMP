@@ -180,7 +180,7 @@
                     <li>
                         <a class="dropdown-item d-flex align-items-center" href="#" onclick="refreshData(); return false;">
                             <i data-feather="refresh-cw" class="me-2 text-primary" style="width: 16px; height: 16px;"></i>
-                            Refresh Data
+                            <span id="refresh-menu-text">Refresh Data</span>
                         </a>
                     </li>
                     <li>
@@ -205,7 +205,7 @@
                     <li>
                         <a class="dropdown-item d-flex align-items-center" href="#" onclick="debugApiConnectivity(); return false;">
                             <i data-feather="wifi" class="me-2 text-info" style="width: 16px; height: 16px;"></i>
-                            Debug API Connection
+                            <span id="debug-menu-text">Debug Connection</span>
                         </a>
                     </li>
                 </ul>
@@ -291,6 +291,21 @@
     <!-- Initialize Feather Icons -->
     <script>
         feather.replace();
+        
+        // Update menu text based on environment
+        document.addEventListener('DOMContentLoaded', function() {
+            const isProduction = window.location.hostname.includes('netlify.app');
+            
+            const debugMenuText = document.getElementById('debug-menu-text');
+            if (debugMenuText) {
+                debugMenuText.textContent = isProduction ? 'Check Supabase' : 'Debug API';
+            }
+            
+            const refreshMenuText = document.getElementById('refresh-menu-text');
+            if (refreshMenuText) {
+                refreshMenuText.textContent = isProduction ? 'Reload Data' : 'Refresh Data';
+            }
+        });
     </script>
 </body>
 </html>

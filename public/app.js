@@ -349,6 +349,38 @@ window.debugApiConnectivity = async function() {
     console.log('Current hostname:', window.location.hostname)
     console.log('Current URL:', window.location.href)
     
+    // Check if we're on Netlify (production) or local development
+    const isProduction = window.location.hostname.includes('netlify.app')
+    
+    if (isProduction) {
+        console.log('🌐 Production mode detected (Netlify)')
+        console.log('✅ In production, data comes from Supabase automatically')
+        console.log('ℹ️ No local scraper API needed - data is updated by scheduled jobs')
+        
+        // Test Supabase connectivity instead
+        try {
+            const { data, error } = await supabase
+                .from('ipos')
+                .select('count')
+                .limit(1)
+            
+            if (error) {
+                console.log('❌ Supabase connection failed:', error.message)
+                alert('❌ Supabase connection failed!\n\nError: ' + error.message + '\n\nThis might be a temporary issue. Please try again later.')
+            } else {
+                console.log('✅ Supabase connection successful')
+                alert('✅ Production app is working correctly!\n\n🌐 You\'re using the Netlify deployment\n📊 Data comes from Supabase automatically\n🔄 No manual refresh needed - data updates automatically')
+            }
+        } catch (error) {
+            console.log('❌ Supabase test failed:', error.message)
+            alert('❌ Supabase connection test failed!\n\nError: ' + error.message + '\n\nThis might be a temporary network issue.')
+        }
+        return
+    }
+    
+    // Local development debugging
+    console.log('🏠 Local development mode detected')
+    
     const apiUrls = [
         'http://localhost:3001/api/scrape',
         'http://127.0.0.1:3001/api/scrape',
@@ -356,7 +388,7 @@ window.debugApiConnectivity = async function() {
         `http://${window.location.hostname}:3001/api/scrape`
     ]
     
-    console.log('Testing API URLs:')
+    console.log('Testing local API URLs:')
     for (const apiUrl of apiUrls) {
         const healthUrl = apiUrl.replace('/api/scrape', '/health')
         try {
@@ -373,10 +405,10 @@ window.debugApiConnectivity = async function() {
     const workingUrl = await detectApiUrl()
     if (workingUrl) {
         console.log('✅ Working API URL found:', workingUrl)
-        alert('✅ API connectivity test passed!\n\nWorking URL: ' + workingUrl)
+        alert('✅ Local API connectivity test passed!\n\nWorking URL: ' + workingUrl)
     } else {
         console.log('❌ No working API URL found')
-        alert('❌ API connectivity test failed!\n\nPlease check:\n1. Scraper API is running: npm run api\n2. You\'re on the same network\n3. Firewall settings')
+        alert('❌ Local API connectivity test failed!\n\nPlease check:\n1. Scraper API is running: npm run api\n2. You\'re on the same network\n3. Firewall settings')
     }
 }
 
