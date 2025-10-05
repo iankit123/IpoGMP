@@ -1,3 +1,5 @@
+Get data from this -> https://www.investorgain.com/report/live-ipo-gmp/331/all/
+
 # IPO GMP Tracker - Supabase + Netlify
 
 A Progressive Web App (PWA) for tracking IPO Grey Market Premium (GMP) data, built with Supabase backend and Netlify frontend.

@@ -20,15 +20,26 @@ app.get('/health', (req, res) => {
 app.post('/api/scrape', (req, res) => {
   console.log('📡 Received scrape request...')
   
-  const scriptPath = path.join(__dirname, 'auto-scraper.js')
+  const { source = 'ipowatch' } = req.body
+  console.log(`📊 Scraping from source: ${source}`)
   
-  exec(`node ${scriptPath}`, (error, stdout, stderr) => {
+        let scriptPath
+        if (source === 'investorgain') {
+          scriptPath = path.join(__dirname, 'investorgain_scraper_real.py')
+        } else {
+          scriptPath = path.join(__dirname, 'auto-scraper.js')
+        }
+  
+  const command = source === 'investorgain' ? `python3 ${scriptPath}` : `node ${scriptPath}`
+  
+  exec(command, (error, stdout, stderr) => {
     if (error) {
       console.error('❌ Error running scraper:', error)
       return res.status(500).json({
         success: false,
         message: 'Failed to run scraper',
-        error: error.message
+        error: error.message,
+        source: source
       })
     }
     
@@ -48,6 +59,7 @@ app.post('/api/scrape', (req, res) => {
     res.json({
       success: true,
       message: 'Scraper completed successfully',
+      source: source,
       newCount,
       updatedCount,
       output: stdout

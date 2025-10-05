@@ -10,10 +10,12 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 // Global variables
 let allIPOs = []
+let allInvestorGainIPOs = []
 let filteredIPOs = []
 let currentFilter = ''
 let currentSearch = ''
 let deferredPrompt = null
+let currentDataSource = 'investorgain' // Default to InvestorGain
 
 // Initialize the app
 document.addEventListener('DOMContentLoaded', function() {
@@ -64,32 +66,101 @@ async function loadIPOData() {
     try {
         showLoading(true)
         
-        // Fetch IPO data from Supabase
-        const { data: ipos, error } = await supabase
-            .from('ipos')
-            .select('*')
-            .eq('is_active', true)
-            .not('close_date', 'is', null)  // Filter out IPOs without close_date
-            .order('close_date', { ascending: false })  // Sort by latest close date first
+        // Fetch IPO data from both sources
+        const [iposResult, investorgainResult] = await Promise.all([
+            supabase
+                .from('ipos')
+                .select('*')
+                .eq('is_active', true)
+                .not('close_date', 'is', null)
+                .order('close_date', { ascending: false }),
+            
+            supabase
+                .from('ipo_investorgain')
+                .select('*')
+                .eq('is_active', true)
+                .not('close_date', 'is', null)
+                .order('close_date', { ascending: false })
+        ])
         
-        if (error) {
-            console.error('Error fetching IPOs:', error)
-            showError('Failed to load IPO data: ' + error.message)
+        if (iposResult.error) {
+            console.error('Error fetching IPOs:', iposResult.error)
+            showError('Failed to load IPO data: ' + iposResult.error.message)
             return
         }
         
-        // Additional filter for IPOs with valid dates, exclude closed IPOs, and sort by close date
-        const today = new Date().toISOString().split('T')[0] // Today in YYYY-MM-DD format
+        if (investorgainResult.error) {
+            console.error('Error fetching InvestorGain IPOs:', investorgainResult.error)
+            // Don't fail completely, just log the error
+        }
         
-        allIPOs = (ipos || [])
-            .filter(ipo => ipo.open_date && ipo.close_date) // Must have valid dates
-            .filter(ipo => ipo.close_date >= today) // Only open and upcoming (exclude closed)
-            .sort((a, b) => new Date(b.close_date) - new Date(a.close_date))  // Latest close date first
-        filteredIPOs = [...allIPOs]
+        // Process IPO Watch data
+        const today = new Date().toISOString().split('T')[0]
         
-        console.log(`Loaded ${allIPOs.length} IPOs from Supabase (filtered by valid dates)`)
+        allIPOs = (iposResult.data || [])
+            .filter(ipo => ipo.open_date && ipo.close_date)
+            .filter(ipo => ipo.close_date >= today)
+            .sort((a, b) => {
+                const todayDate = new Date()
+                const aOpen = new Date(a.open_date)
+                const aClose = new Date(a.close_date)
+                const bOpen = new Date(b.open_date)
+                const bClose = new Date(b.close_date)
+                
+                // Check if IPO is currently open
+                const aIsOpen = todayDate >= aOpen && todayDate <= aClose
+                const bIsOpen = todayDate >= bOpen && todayDate <= bClose
+                
+                // Open IPOs first, then upcoming IPOs
+                if (aIsOpen && !bIsOpen) return -1
+                if (!aIsOpen && bIsOpen) return 1
+                
+                // Within same category, sort by close date (ascending for open, descending for upcoming)
+                if (aIsOpen && bIsOpen) {
+                    return new Date(a.close_date) - new Date(b.close_date) // Open: closest to closing first
+                } else {
+                    return new Date(b.close_date) - new Date(a.close_date) // Upcoming: furthest first
+                }
+            })
+        
+        // Process InvestorGain data
+        allInvestorGainIPOs = (investorgainResult.data || [])
+            .filter(ipo => ipo.open_date && ipo.close_date)
+            .filter(ipo => ipo.close_date >= today)
+            .sort((a, b) => {
+                const todayDate = new Date()
+                const aOpen = new Date(a.open_date)
+                const aClose = new Date(a.close_date)
+                const bOpen = new Date(b.open_date)
+                const bClose = new Date(b.close_date)
+                
+                // Check if IPO is currently open
+                const aIsOpen = todayDate >= aOpen && todayDate <= aClose
+                const bIsOpen = todayDate >= bOpen && todayDate <= bClose
+                
+                // Open IPOs first, then upcoming IPOs
+                if (aIsOpen && !bIsOpen) return -1
+                if (!aIsOpen && bIsOpen) return 1
+                
+                // Within same category, sort by close date (ascending for open, descending for upcoming)
+                if (aIsOpen && bIsOpen) {
+                    return new Date(a.close_date) - new Date(b.close_date) // Open: closest to closing first
+                } else {
+                    return new Date(b.close_date) - new Date(a.close_date) // Upcoming: furthest first
+                }
+            })
+        
+        // Set current data based on source
+        if (currentDataSource === 'investorgain') {
+            filteredIPOs = [...allInvestorGainIPOs]
+        } else {
+            filteredIPOs = [...allIPOs]
+        }
+        
+        console.log(`Loaded ${allIPOs.length} primary IPOs and ${allInvestorGainIPOs.length} secondary IPOs`)
         
         updateStatusCards()
+        updateDataSourceIndicator()
         renderIPOCards()
         showLoading(false)
         
@@ -97,6 +168,14 @@ async function loadIPOData() {
         console.error('Error loading IPO data:', error)
         showError('Failed to load IPO data: ' + error.message)
         showLoading(false)
+    }
+}
+
+function updateDataSourceIndicator() {
+    const indicator = document.getElementById('data-source-indicator')
+    if (indicator) {
+        indicator.textContent = 'Current Data'
+        indicator.className = 'text-muted'
     }
 }
 
@@ -235,7 +314,20 @@ function renderIPOCards() {
                             </div>
                             <div class="text-dark">
                                 <span>Issue price - </span>
-                                <span class="fw-medium">${ipo.issue_price ? `₹${ipo.issue_price.toFixed(0)}` : 'TBA'}</span>
+                                <span class="fw-medium">${ipo.price ? `₹${ipo.price.toFixed(0)}` : (ipo.issue_price ? `₹${ipo.issue_price.toFixed(0)}` : 'TBA')}</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Line 4: IPO Size, Lot Size & Subscription -->
+                        <div class="d-flex justify-content-between align-items-center small mt-1">
+                            <div class="text-muted">
+                                ${ipo.ipo_size ? `IPO Size: ₹${ipo.ipo_size.toFixed(0)} Cr` : ''}
+                            </div>
+                            <div class="text-muted">
+                                ${ipo.lot_size ? `Lot: ${ipo.lot_size}` : ''}
+                            </div>
+                            <div class="text-muted">
+                                ${ipo.subscription_multiple ? `Sub: ${ipo.subscription_multiple.toFixed(2)}x` : ''}
                             </div>
                         </div>
                     </div>
@@ -258,7 +350,9 @@ function handleFilter(event) {
 }
 
 function applyFilters() {
-    filteredIPOs = allIPOs.filter(ipo => {
+    const sourceData = currentDataSource === 'investorgain' ? allInvestorGainIPOs : allIPOs
+    
+    filteredIPOs = sourceData.filter(ipo => {
         // Search filter
         if (currentSearch && !ipo.name.toLowerCase().includes(currentSearch)) {
             return false
@@ -280,6 +374,27 @@ function applyFilters() {
         }
         
         return true
+    }).sort((a, b) => {
+        const todayDate = new Date()
+        const aOpen = new Date(a.open_date)
+        const aClose = new Date(a.close_date)
+        const bOpen = new Date(b.open_date)
+        const bClose = new Date(b.close_date)
+        
+        // Check if IPO is currently open
+        const aIsOpen = todayDate >= aOpen && todayDate <= aClose
+        const bIsOpen = todayDate >= bOpen && todayDate <= bClose
+        
+        // Open IPOs first, then upcoming IPOs
+        if (aIsOpen && !bIsOpen) return -1
+        if (!aIsOpen && bIsOpen) return 1
+        
+        // Within same category, sort by close date (ascending for open, descending for upcoming)
+        if (aIsOpen && bIsOpen) {
+            return new Date(a.close_date) - new Date(b.close_date) // Open: closest to closing first
+        } else {
+            return new Date(b.close_date) - new Date(a.close_date) // Upcoming: furthest first
+        }
     })
     
     renderIPOCards()
@@ -413,9 +528,12 @@ window.debugApiConnectivity = async function() {
 }
 
 // Menu functions
-async function refreshData() {
+async function refreshData(source = 'investorgain') {
     try {
-        console.log('🔄 Triggering scraper to fetch latest data...')
+        console.log(`🔄 Triggering scraper to fetch latest data...`)
+        
+        // Update current data source
+        currentDataSource = source
         
         // Show loading state
         const originalContent = document.getElementById('ipo-container').innerHTML
@@ -428,7 +546,7 @@ async function refreshData() {
             // On Netlify, just reload data from Supabase (no local scraper)
             console.log('🔄 Production mode: Reloading data from Supabase...')
             await loadIPOData()
-            alert('✅ Data refreshed from Supabase!')
+            alert(`✅ Data refreshed from Supabase!\n\nSource: ${source}`)
             return
         }
         
@@ -446,6 +564,9 @@ async function refreshData() {
             headers: {
                 'Content-Type': 'application/json'
             },
+            body: JSON.stringify({
+                source: source
+            }),
             // Add timeout to prevent hanging
             signal: AbortSignal.timeout(10000) // 10 second timeout
         })
@@ -462,7 +583,7 @@ async function refreshData() {
             // Reload IPO data from Supabase
             await loadIPOData()
             
-            alert(`✅ Data updated!\n\n📈 ${result.newCount} new IPOs\n🔄 ${result.updatedCount} updated IPOs`)
+            alert(`✅ Data updated from ${result.source}!\n\n📈 ${result.newCount} new IPOs\n🔄 ${result.updatedCount} updated IPOs`)
         } else {
             throw new Error(result.message || 'Scraper failed')
         }
