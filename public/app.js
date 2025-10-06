@@ -543,6 +543,7 @@ async function refreshData(source = 'investorgain') {
         const isProduction = window.location.hostname.includes('netlify.app')
         
         if (isProduction) {
+<<<<<<< HEAD
             // On Netlify, trigger Supabase Edge Function to scrape fresh data
             console.log('🔄 Production mode: Triggering Supabase Edge Function to scrape fresh data...')
             
@@ -606,10 +607,35 @@ async function refreshData(source = 'investorgain') {
                     await loadIPOData()
                     alert(`⚠️ Could not trigger fresh scraping. Loaded existing data from Supabase.\n\nEdge Function Error: ${error.message}\nNetlify Function Error: ${fallbackError.message}`)
                 }
+=======
+            // On Netlify, call InvestorGain scraper API
+            console.log('🔄 Production mode: Calling InvestorGain scraper...')
+            
+            const response = await fetch('/api/refresh-investorgain', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+            }
+            
+            const result = await response.json()
+            
+            if (result.success) {
+                console.log('✅ InvestorGain scraper completed:', result)
+                await loadIPOData()
+                alert(`✅ Data refreshed from InvestorGain!\n\n📈 ${result.newCount} IPOs updated`)
+            } else {
+                throw new Error(result.message || 'InvestorGain scraper failed')
+>>>>>>> main
             }
             return
         }
         
+<<<<<<< HEAD
         // Local development: Call local scraper API with dynamic URL detection
         const workingApiUrl = await detectApiUrl()
         
@@ -629,6 +655,16 @@ async function refreshData(source = 'investorgain') {
             }),
             // Add timeout to prevent hanging
             signal: AbortSignal.timeout(10000) // 10 second timeout
+=======
+        // Local development: Call InvestorGain scraper API
+        console.log('🔄 Local development: Calling InvestorGain scraper...')
+        
+        const response = await fetch('/api/refresh-investorgain', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+>>>>>>> main
         })
         
         if (!response.ok) {
@@ -638,14 +674,24 @@ async function refreshData(source = 'investorgain') {
         const result = await response.json()
         
         if (result.success) {
+<<<<<<< HEAD
             console.log('✅ Scraper completed:', result)
+=======
+            console.log('✅ InvestorGain scraper completed:', result)
+>>>>>>> main
             
             // Reload IPO data from Supabase
             await loadIPOData()
             
+<<<<<<< HEAD
             alert(`✅ Data updated from ${result.source}!\n\n📈 ${result.newCount} new IPOs\n🔄 ${result.updatedCount} updated IPOs`)
         } else {
             throw new Error(result.message || 'Scraper failed')
+=======
+            alert(`✅ Data updated from InvestorGain!\n\n📈 ${result.newCount} IPOs updated`)
+        } else {
+            throw new Error(result.message || 'InvestorGain scraper failed')
+>>>>>>> main
         }
         
     } catch (error) {
@@ -670,6 +716,7 @@ async function forceRefresh() {
         const isProduction = window.location.hostname.includes('netlify.app')
         
         if (isProduction) {
+<<<<<<< HEAD
             // On Netlify, trigger Supabase Edge Function to scrape fresh data
             console.log('🔄 Production mode: Force refreshing - triggering Supabase Edge Function...')
             
@@ -733,6 +780,30 @@ async function forceRefresh() {
                     await loadIPOData()
                     alert(`⚠️ Could not trigger fresh scraping. Loaded existing data from Supabase.\n\nEdge Function Error: ${error.message}\nNetlify Function Error: ${fallbackError.message}`)
                 }
+=======
+            // On Netlify, call InvestorGain scraper API
+            console.log('🔄 Production mode: Force refreshing from InvestorGain...')
+            
+            const response = await fetch('/api/refresh-investorgain', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+            }
+            
+            const result = await response.json()
+            
+            if (result.success) {
+                console.log('✅ InvestorGain scraper completed:', result)
+                await loadIPOData()
+                alert(`✅ Data force refreshed from InvestorGain!\n\n📈 ${result.newCount} IPOs updated`)
+            } else {
+                throw new Error(result.message || 'InvestorGain scraper failed')
+>>>>>>> main
             }
             return
         }
