@@ -434,30 +434,26 @@ class IPOTracker {
         } catch (error) {
           console.error('❌ Error calling Supabase Edge Function:', error);
           
-          // Fallback: Try to scrape directly from the browser
+          // Fallback: Try Netlify serverless function
           try {
-            console.log('🔄 Trying browser-based scraping as fallback...');
+            console.log('🔄 Trying Netlify serverless function as fallback...');
             
-            // Load the scraping function if not already loaded
-            if (typeof window.scrapeIPOData === 'undefined') {
-              const script = document.createElement('script');
-              script.src = '/scrape-api.js';
-              document.head.appendChild(script);
-              
-              // Wait for script to load
-              await new Promise((resolve, reject) => {
-                script.onload = resolve;
-                script.onerror = reject;
-                setTimeout(reject, 10000); // 10 second timeout
-              });
+            const response = await fetch('/.netlify/functions/scrape-ipos', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              }
+            });
+            
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             
-            // Call the scraping function
-            const result = await window.scrapeIPOData();
+            const result = await response.json();
+            console.log('✅ Netlify function response:', result);
             
             if (result.success) {
-              console.log('✅ Browser scraping completed:', result);
-              alert(`Fresh data scraped using browser fallback! Page will refresh in 3 seconds.\n\n${result.message}`);
+              alert(`Fresh data scraped using Netlify function! Page will refresh in 3 seconds.\n\n${result.message}`);
               setTimeout(() => {
                 location.reload();
               }, 3000);
@@ -466,8 +462,8 @@ class IPOTracker {
             }
             
           } catch (fallbackError) {
-            console.error('❌ Browser scraping also failed:', fallbackError);
-            alert(`⚠️ Could not trigger fresh scraping. Please try again later.\n\nEdge Function Error: ${error.message}\nBrowser Scraping Error: ${fallbackError.message}`);
+            console.error('❌ Netlify function also failed:', fallbackError);
+            alert(`⚠️ Could not trigger fresh scraping. Please try again later.\n\nEdge Function Error: ${error.message}\nNetlify Function Error: ${fallbackError.message}`);
           }
         }
         

@@ -572,43 +572,39 @@ async function refreshData(source = 'investorgain') {
             } catch (error) {
                 console.error('❌ Error calling Supabase Edge Function:', error)
                 
-                // Fallback: Try to scrape directly from the browser
+                // Fallback: Try Netlify serverless function
                 try {
-                    console.log('🔄 Trying browser-based scraping as fallback...')
+                    console.log('🔄 Trying Netlify serverless function as fallback...')
                     
-                    // Load the scraping function if not already loaded
-                    if (typeof window.scrapeIPOData === 'undefined') {
-                        const script = document.createElement('script')
-                        script.src = '/scrape-api.js'
-                        document.head.appendChild(script)
-                        
-                        // Wait for script to load
-                        await new Promise((resolve, reject) => {
-                            script.onload = resolve
-                            script.onerror = reject
-                            setTimeout(reject, 10000) // 10 second timeout
-                        })
+                    const response = await fetch('/.netlify/functions/scrape-ipos', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
                     }
                     
-                    // Call the scraping function
-                    const result = await window.scrapeIPOData()
+                    const result = await response.json()
+                    console.log('✅ Netlify function response:', result)
                     
                     if (result.success) {
-                        console.log('✅ Browser scraping completed:', result)
                         // Wait a moment for the database to update, then reload data
                         setTimeout(async () => {
                             await loadIPOData()
-                            alert(`✅ Data refreshed! Fresh data scraped using browser fallback.\n\n${result.message}`)
+                            alert(`✅ Data refreshed! Fresh data scraped using Netlify function.\n\n${result.message}`)
                         }, 2000)
                     } else {
                         throw new Error(result.error)
                     }
                     
                 } catch (fallbackError) {
-                    console.error('❌ Browser scraping also failed:', fallbackError)
+                    console.error('❌ Netlify function also failed:', fallbackError)
                     // Final fallback: just reload existing data
                     await loadIPOData()
-                    alert(`⚠️ Could not trigger fresh scraping. Loaded existing data from Supabase.\n\nEdge Function Error: ${error.message}\nBrowser Scraping Error: ${fallbackError.message}`)
+                    alert(`⚠️ Could not trigger fresh scraping. Loaded existing data from Supabase.\n\nEdge Function Error: ${error.message}\nNetlify Function Error: ${fallbackError.message}`)
                 }
             }
             return
@@ -703,43 +699,39 @@ async function forceRefresh() {
             } catch (error) {
                 console.error('❌ Error calling Supabase Edge Function:', error)
                 
-                // Fallback: Try to scrape directly from the browser
+                // Fallback: Try Netlify serverless function
                 try {
-                    console.log('🔄 Trying browser-based scraping as fallback...')
+                    console.log('🔄 Trying Netlify serverless function as fallback...')
                     
-                    // Load the scraping function if not already loaded
-                    if (typeof window.scrapeIPOData === 'undefined') {
-                        const script = document.createElement('script')
-                        script.src = '/scrape-api.js'
-                        document.head.appendChild(script)
-                        
-                        // Wait for script to load
-                        await new Promise((resolve, reject) => {
-                            script.onload = resolve
-                            script.onerror = reject
-                            setTimeout(reject, 10000) // 10 second timeout
-                        })
+                    const response = await fetch('/.netlify/functions/scrape-ipos', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
                     }
                     
-                    // Call the scraping function
-                    const result = await window.scrapeIPOData()
+                    const result = await response.json()
+                    console.log('✅ Netlify function response:', result)
                     
                     if (result.success) {
-                        console.log('✅ Browser scraping completed:', result)
                         // Wait a moment for the database to update, then reload data
                         setTimeout(async () => {
                             await loadIPOData()
-                            alert(`✅ Data force refreshed! Fresh data scraped using browser fallback.\n\n${result.message}`)
+                            alert(`✅ Data force refreshed! Fresh data scraped using Netlify function.\n\n${result.message}`)
                         }, 2000)
                     } else {
                         throw new Error(result.error)
                     }
                     
                 } catch (fallbackError) {
-                    console.error('❌ Browser scraping also failed:', fallbackError)
+                    console.error('❌ Netlify function also failed:', fallbackError)
                     // Final fallback: just reload existing data
                     await loadIPOData()
-                    alert(`⚠️ Could not trigger fresh scraping. Loaded existing data from Supabase.\n\nEdge Function Error: ${error.message}\nBrowser Scraping Error: ${fallbackError.message}`)
+                    alert(`⚠️ Could not trigger fresh scraping. Loaded existing data from Supabase.\n\nEdge Function Error: ${error.message}\nNetlify Function Error: ${fallbackError.message}`)
                 }
             }
             return
