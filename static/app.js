@@ -403,22 +403,93 @@ class IPOTracker {
   // Manual scrape function
   async manualScrape() {
     try {
-      const response = await fetch('/admin/scrape', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-
-      const result = await response.json();
+      // Check if we're on Netlify (production) or local development
+      const isProduction = window.location.hostname.includes('netlify.app');
       
-      if (result.success) {
-        alert('Scraping triggered successfully! Page will refresh in 3 seconds.');
-        setTimeout(() => {
-          location.reload();
-        }, 3000);
+      if (isProduction) {
+        // On Netlify, trigger Supabase Edge Function to scrape fresh data
+        console.log('🔄 Production mode: Triggering Supabase Edge Function to scrape fresh data...');
+        
+        try {
+          const response = await fetch('https://jztpxmdiaqsafpzfcpib.supabase.co/functions/v1/scrape-ipos', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp6dHB4bWRpYXFzYWZwemZjcGliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk1OTQ2MDgsImV4cCI6MjA3NTE3MDYwOH0.1tfhdtjS6B87p8I_0ntCdM4NH6MVn8E3Hmuw-2c_QZU'
+            }
+          });
+          
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          
+          const result = await response.json();
+          console.log('✅ Supabase Edge Function response:', result);
+          
+          alert('Fresh data scraped successfully! Page will refresh in 3 seconds.');
+          setTimeout(() => {
+            location.reload();
+          }, 3000);
+          
+        } catch (error) {
+          console.error('❌ Error calling Supabase Edge Function:', error);
+          
+          // Fallback: Try to scrape directly from the browser
+          try {
+            console.log('🔄 Trying browser-based scraping as fallback...');
+            
+            // Load the scraping function if not already loaded
+            if (typeof window.scrapeIPOData === 'undefined') {
+              const script = document.createElement('script');
+              script.src = '/scrape-api.js';
+              document.head.appendChild(script);
+              
+              // Wait for script to load
+              await new Promise((resolve, reject) => {
+                script.onload = resolve;
+                script.onerror = reject;
+                setTimeout(reject, 10000); // 10 second timeout
+              });
+            }
+            
+            // Call the scraping function
+            const result = await window.scrapeIPOData();
+            
+            if (result.success) {
+              console.log('✅ Browser scraping completed:', result);
+              alert(`Fresh data scraped using browser fallback! Page will refresh in 3 seconds.\n\n${result.message}`);
+              setTimeout(() => {
+                location.reload();
+              }, 3000);
+            } else {
+              throw new Error(result.error);
+            }
+            
+          } catch (fallbackError) {
+            console.error('❌ Browser scraping also failed:', fallbackError);
+            alert(`⚠️ Could not trigger fresh scraping. Please try again later.\n\nEdge Function Error: ${error.message}\nBrowser Scraping Error: ${fallbackError.message}`);
+          }
+        }
+        
       } else {
-        alert('Failed to trigger scraping: ' + result.error);
+        // Local development: Use Flask endpoint
+        const response = await fetch('/admin/scrape', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+
+        const result = await response.json();
+        
+        if (result.success) {
+          alert('Scraping triggered successfully! Page will refresh in 3 seconds.');
+          setTimeout(() => {
+            location.reload();
+          }, 3000);
+        } else {
+          alert('Failed to trigger scraping: ' + result.error);
+        }
       }
 
     } catch (error) {
