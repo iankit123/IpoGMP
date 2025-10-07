@@ -530,7 +530,7 @@ window.debugApiConnectivity = async function() {
 // Menu functions
 async function refreshData(source = 'investorgain') {
     try {
-        console.log(`🔄 Triggering scraper to fetch latest data...`)
+        console.log(`🔄 Triggering InvestorGain scraper to fetch latest data...`)
         
         // Update current data source
         currentDataSource = source
@@ -550,47 +550,31 @@ async function refreshData(source = 'investorgain') {
             return
         }
         
-        // Local development: Call local scraper API with dynamic URL detection
-        const workingApiUrl = await detectApiUrl()
-        
-        if (!workingApiUrl) {
-            throw new Error('Could not find a working scraper API URL. Please check:\n1. Scraper API is running: npm run api\n2. You\'re on the same network as the server\n3. Firewall is not blocking port 3001')
-        }
-        
-        console.log(`🔄 Using API URL: ${workingApiUrl}`)
-        
-        const response = await fetch(workingApiUrl, {
+        // Local development: Trigger InvestorGain scraper
+        console.log('🔄 Local mode: Triggering InvestorGain scraper...')
+        const response = await fetch('http://localhost:3001/api/refresh-investorgain', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                source: source
-            }),
-            // Add timeout to prevent hanging
-            signal: AbortSignal.timeout(10000) // 10 second timeout
+            }
         })
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-        }
         
         const result = await response.json()
         
         if (result.success) {
-            console.log('✅ Scraper completed:', result)
-            
-            // Reload IPO data from Supabase
+            console.log('✅ InvestorGain scraper completed successfully')
+            // Reload data from Supabase after scraping
             await loadIPOData()
-            
-            alert(`✅ Data updated from ${result.source}!\n\n📈 ${result.newCount} new IPOs\n🔄 ${result.updatedCount} updated IPOs`)
+            alert(`✅ ${result.message}\n\n📊 ${result.count} IPOs updated from InvestorGain`)
         } else {
-            throw new Error(result.message || 'Scraper failed')
+            console.error('❌ InvestorGain scraper failed:', result.message)
+            alert(`❌ ${result.message}`)
         }
         
     } catch (error) {
         console.error('❌ Error refreshing data:', error)
-        alert('❌ Failed to refresh data.\n\nPossible solutions:\n1. Make sure the scraper API is running: npm run api\n2. Check if you\'re on the same network as the server\n3. Try accessing from localhost:8000 instead\n\nError details: ' + error.message)
+        alert('❌ Failed to refresh data.\n\nError: ' + error.message)
+    } finally {
         showLoading(false)
     }
 }
@@ -617,8 +601,26 @@ async function forceRefresh() {
             return
         }
         
-        // Local development: Trigger scraper
-        await refreshData()
+        // Local development: Trigger InvestorGain scraper
+        console.log('🔄 Local mode: Force triggering InvestorGain scraper...')
+        const response = await fetch('http://localhost:3001/api/force-refresh-investorgain', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        
+        const result = await response.json()
+        
+        if (result.success) {
+            console.log('✅ InvestorGain scraper force completed successfully')
+            // Reload data from Supabase after scraping
+            await loadIPOData()
+            alert(`✅ ${result.message}\n\n📊 ${result.count} IPOs force updated from InvestorGain`)
+        } else {
+            console.error('❌ InvestorGain scraper force failed:', result.message)
+            alert(`❌ ${result.message}`)
+        }
         
     } catch (error) {
         console.error('❌ Error force refreshing data:', error)
