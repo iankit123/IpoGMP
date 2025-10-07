@@ -62,8 +62,9 @@ def initialize_app():
     """Initialize the app with error handling to prevent crash loops"""
     try:
         with app.app_context():
-            # Import models to ensure tables are created
+            # Set db reference in models to avoid circular import
             import models
+            models.db = db
             
             # Test database connection before creating tables
             db.engine.connect().close()
@@ -91,3 +92,6 @@ def initialize_app():
 
 # Initialize with error handling
 initialize_app()
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5000)

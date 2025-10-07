@@ -2,7 +2,6 @@ from flask import render_template, request, jsonify, redirect, url_for, make_res
 from app import app, db
 from models import IPO, PushSubscription
 from scraper import scrape_and_update
-from investorgain_scraper_selenium import scrape_investorgain_selenium
 from notifications import notification_manager
 from scheduler import trigger_scrape, trigger_notifications
 import logging
@@ -162,33 +161,6 @@ def manual_scrape():
     except Exception as e:
         logger.error(f"Error triggering scrape: {e}")
         return jsonify({'error': 'Failed to trigger scraping'}), 500
-
-@app.route('/api/refresh-investorgain', methods=['POST'])
-def refresh_investorgain():
-    """Refresh data from InvestorGain website"""
-    try:
-        logger.info("Starting InvestorGain data refresh...")
-        
-        # Run the InvestorGain scraper
-        result = scrape_investorgain_selenium()
-        
-        if result > 0:
-            return jsonify({
-                'success': True, 
-                'message': f'InvestorGain data refreshed successfully',
-                'source': 'InvestorGain',
-                'newCount': result,
-                'updatedCount': result
-            })
-        else:
-            return jsonify({
-                'success': False, 
-                'message': 'No data was scraped from InvestorGain'
-            }), 400
-            
-    except Exception as e:
-        logger.error(f"Error refreshing InvestorGain data: {e}")
-        return jsonify({'error': f'Failed to refresh InvestorGain data: {str(e)}'}), 500
 
 @app.route('/admin/test-notification', methods=['POST'])
 def test_notification():
