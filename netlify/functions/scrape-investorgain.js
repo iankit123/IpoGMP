@@ -60,7 +60,39 @@ async function scrapeInvestorGain() {
                 // Helper function to handle date fields
                 const parseDate = (dateStr) => {
                     const cleaned = clean(dateStr);
-                    return cleaned && cleaned.trim() !== '' ? cleaned : null;
+                    if (!cleaned || cleaned.trim() === '') {
+                        return null;
+                    }
+                    
+                    // Convert "14-Oct" format to "YYYY-MM-DD" format for PostgreSQL DATE type
+                    try {
+                        // Parse "14-Oct" format
+                        const match = cleaned.match(/(\d{1,2})-([A-Za-z]{3})/);
+                        if (match) {
+                            const day = match[1].padStart(2, '0');
+                            const monthName = match[2];
+                            
+                            // Map month names to numbers
+                            const monthMap = {
+                                'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
+                                'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
+                                'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
+                            };
+                            
+                            const month = monthMap[monthName];
+                            if (month) {
+                                const currentYear = new Date().getFullYear();
+                                return `${currentYear}-${month}-${day}`;
+                            }
+                        }
+                        
+                        // If parsing fails, return null to avoid database errors
+                        console.warn(`⚠️ Could not parse date: ${cleaned}`);
+                        return null;
+                    } catch (error) {
+                        console.error(`❌ Error parsing date ${cleaned}:`, error);
+                        return null;
+                    }
                 };
                 
                 const ipo = {
