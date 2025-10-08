@@ -57,6 +57,12 @@ async function scrapeInvestorGain() {
 
         const ipoData = rows.map((r, index) => {
             try {
+                // Helper function to handle date fields
+                const parseDate = (dateStr) => {
+                    const cleaned = clean(dateStr);
+                    return cleaned && cleaned.trim() !== '' ? cleaned : null;
+                };
+                
                 const ipo = {
                     name: clean(r["~ipo_name"]),
                     gmp_value: parseFloat(clean(r["GMP"]).replace(/[₹,]/g, '')) || null,
@@ -65,8 +71,8 @@ async function scrapeInvestorGain() {
                     ipo_size: parseFloat(clean(r["IPO Size"]).replace(/[₹,]/g, '')) || null,
                     lot_size: parseInt(clean(r["Lot"])) || null,
                     subscription_multiple: parseFloat(clean(r["Sub"]).replace('x', '')) || null,
-                    open_date: clean(r["Open"]),
-                    close_date: clean(r["Close"]),
+                    open_date: parseDate(r["Open"]),
+                    close_date: parseDate(r["Close"]),
                     updated_on: new Date().toISOString(),
                     data_source: 'investorgain',
                     is_active: true
