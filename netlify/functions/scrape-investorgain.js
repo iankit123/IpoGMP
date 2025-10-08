@@ -55,21 +55,35 @@ async function scrapeInvestorGain() {
                     .trim()
                 : str;
 
-        const ipoData = rows.map((r) => ({
-            name: clean(r["~ipo_name"]),
-            gmp_value: parseFloat(clean(r["GMP"]).replace(/[₹,]/g, '')) || null,
-            gmp_percentage: parseFloat(clean(r["GMP"]).match(/\((\d+(?:\.\d+)?)%\)/)?.[1]) || null,
-            price: parseFloat(clean(r["Price"]).replace(/[₹,]/g, '')) || null,
-            ipo_size: clean(r["IPO Size"]),
-            lot_size: parseInt(clean(r["Lot"])) || null,
-            subscription_multiple: parseFloat(clean(r["Sub"]).replace('x', '')) || null,
-            open_date: clean(r["Open"]),
-            close_date: clean(r["Close"]),
-            listing_date: clean(r["Listing"]),
-            updated_on: new Date().toISOString(),
-            data_source: 'investorgain',
-            is_active: true
-        }));
+        const ipoData = rows.map((r, index) => {
+            try {
+                const ipo = {
+                    name: clean(r["~ipo_name"]),
+                    gmp_value: parseFloat(clean(r["GMP"]).replace(/[₹,]/g, '')) || null,
+                    gmp_percentage: parseFloat(clean(r["GMP"]).match(/\((\d+(?:\.\d+)?)%\)/)?.[1]) || null,
+                    price: parseFloat(clean(r["Price"]).replace(/[₹,]/g, '')) || null,
+                    ipo_size: parseFloat(clean(r["IPO Size"]).replace(/[₹,]/g, '')) || null,
+                    lot_size: parseInt(clean(r["Lot"])) || null,
+                    subscription_multiple: parseFloat(clean(r["Sub"]).replace('x', '')) || null,
+                    open_date: clean(r["Open"]),
+                    close_date: clean(r["Close"]),
+                    updated_on: new Date().toISOString(),
+                    data_source: 'investorgain',
+                    is_active: true
+                };
+                
+                // Log first few records for debugging
+                if (index < 3) {
+                    console.log(`📋 Sample IPO ${index + 1}:`, ipo);
+                }
+                
+                return ipo;
+            } catch (error) {
+                console.error(`❌ Error parsing IPO row ${index}:`, error);
+                console.error(`❌ Row data:`, r);
+                return null;
+            }
+        }).filter(ipo => ipo !== null && ipo.name && ipo.name.trim() !== '');
 
         console.log(`✅ Successfully parsed ${ipoData.length} IPOs from API`);
         return ipoData;
