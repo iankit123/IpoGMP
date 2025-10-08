@@ -68,9 +68,7 @@ async function scrapeInvestorGain() {
             listing_date: clean(r["Listing"]),
             updated_on: new Date().toISOString(),
             data_source: 'investorgain',
-            is_active: true,
-            category: clean(r["~IPO_Category"]),
-            link: "https://www.investorgain.com" + (r["~urlrewrite_folder_name"] || '')
+            is_active: true
         }));
 
         console.log(`✅ Successfully parsed ${ipoData.length} IPOs from API`);
