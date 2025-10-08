@@ -2,7 +2,7 @@
 
 [build]
   publish = "public"
-  command = "echo 'Static site - no build needed'"
+  command = "npm install"
 
 [build.environment]
   NODE_VERSION = "18"
@@ -38,6 +38,10 @@
   for = "/icons/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000"
+
+# Netlify plugins
+[[plugins]]
+  package = "@netlify/plugin-functions-install-core"
 
 # Environment variables (set these in Netlify dashboard)
 # SUPABASE_URL = "https://jztpxmdiaqsafpzfcpib.supabase.co"
