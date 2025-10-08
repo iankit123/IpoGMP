@@ -547,6 +547,7 @@ async function refreshData(source = 'investorgain') {
             console.log('🔄 Production mode: Triggering InvestorGain scraper via Netlify function...')
             
             try {
+                console.log('📡 Making request to Netlify function...')
                 const response = await fetch('/.netlify/functions/scrape-investorgain', {
                     method: 'POST',
                     headers: {
@@ -554,7 +555,17 @@ async function refreshData(source = 'investorgain') {
                     }
                 })
                 
+                console.log('📡 Response status:', response.status)
+                console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()))
+                
+                if (!response.ok) {
+                    const errorText = await response.text()
+                    console.error('❌ HTTP Error Response:', errorText)
+                    throw new Error(`HTTP ${response.status}: ${errorText}`)
+                }
+                
                 const result = await response.json()
+                console.log('📡 Function response:', result)
                 
                 if (result.success) {
                     console.log('✅ InvestorGain scraper completed successfully')
@@ -562,11 +573,16 @@ async function refreshData(source = 'investorgain') {
                     await loadIPOData()
                     alert(`✅ ${result.message}\n\n📊 ${result.count} IPOs updated from InvestorGain`)
                 } else {
-                    console.error('❌ Scraper failed:', result.error)
-                    alert(`❌ Failed to refresh data: ${result.error}`)
+                    console.error('❌ Scraper failed:', result.error || result.message)
+                    alert(`❌ Failed to refresh data: ${result.error || result.message || 'Unknown error'}`)
                 }
             } catch (error) {
                 console.error('❌ Error calling Netlify function:', error)
+                console.error('❌ Error details:', {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack
+                })
                 alert(`❌ Failed to refresh data: ${error.message}`)
             }
             return

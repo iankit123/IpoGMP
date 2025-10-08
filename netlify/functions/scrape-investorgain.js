@@ -9,9 +9,10 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 // Simple web scraping function using regex parsing (more reliable than jsdom)
 async function scrapeInvestorGain() {
     try {
-        console.log('Starting InvestorGain scraping...');
+        console.log('🌐 Starting InvestorGain scraping...');
         
         // Fetch the InvestorGain page
+        console.log('📡 Fetching InvestorGain page...');
         const response = await fetch('https://www.investorgain.com/report/live-ipo-gmp/331/all/', {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -23,12 +24,20 @@ async function scrapeInvestorGain() {
             }
         });
         
+        console.log('📡 Response status:', response.status);
+        console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
+        
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
         const html = await response.text();
-        console.log(`Fetched HTML, length: ${html.length}`);
+        console.log(`📄 Fetched HTML, length: ${html.length}`);
+        
+        // Check if we got the expected content
+        if (html.length < 1000) {
+            console.log('⚠️ HTML content seems too short, first 500 chars:', html.substring(0, 500));
+        }
         
         // Use regex to extract table data (more reliable than DOM parsing)
         const ipoData = [];
@@ -37,11 +46,19 @@ async function scrapeInvestorGain() {
         const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/g;
         const rows = html.match(rowRegex) || [];
         
-        console.log(`Found ${rows.length} table rows`);
+        console.log(`🔍 Found ${rows.length} table rows`);
         
-        for (const row of rows) {
+        // Log first few rows for debugging
+        if (rows.length > 0) {
+            console.log('🔍 First row sample:', rows[0].substring(0, 200));
+        }
+        
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            
             // Skip header rows
             if (row.includes('data-label="Name"') || row.includes('th>')) {
+                console.log(`⏭️ Skipping header row ${i}`);
                 continue;
             }
             
@@ -137,28 +154,38 @@ async function scrapeInvestorGain() {
             // Only add if we have a name
             if (ipoInfo.name && ipoInfo.name !== 'Loading...' && ipoInfo.name.length > 0) {
                 ipoData.push(ipoInfo);
+                console.log(`✅ Parsed IPO ${ipoData.length}: ${ipoInfo.name}`);
+            } else {
+                console.log(`⏭️ Skipping row ${i} - no valid name found`);
             }
         }
         
-        console.log(`Parsed ${ipoData.length} IPOs`);
+        console.log(`📊 Successfully parsed ${ipoData.length} IPOs`);
         return ipoData;
         
     } catch (error) {
-        console.error('Error scraping InvestorGain:', error);
+        console.error('❌ Error scraping InvestorGain:', error);
+        console.error('❌ Error stack:', error.stack);
         throw error;
     }
 }
 
 exports.handler = async (event, context) => {
+    console.log('🚀 Netlify function started');
+    console.log('📋 Event:', JSON.stringify(event, null, 2));
+    console.log('📋 Context:', JSON.stringify(context, null, 2));
+    
     // Set CORS headers
     const headers = {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type',
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Content-Type': 'application/json'
     };
     
     // Handle preflight requests
     if (event.httpMethod === 'OPTIONS') {
+        console.log('✅ Handling OPTIONS request');
         return {
             statusCode: 200,
             headers,
@@ -167,12 +194,21 @@ exports.handler = async (event, context) => {
     }
     
     try {
-        console.log('InvestorGain scraping function called');
+        console.log('🔄 InvestorGain scraping function called');
+        console.log('📡 HTTP Method:', event.httpMethod);
+        console.log('📡 Headers:', event.headers);
+        
+        // Check if Supabase client is properly initialized
+        console.log('🔍 Supabase URL:', supabaseUrl);
+        console.log('🔍 Supabase Key length:', supabaseKey ? supabaseKey.length : 'undefined');
         
         // Scrape data from InvestorGain
+        console.log('🌐 Starting web scraping...');
         const ipoData = await scrapeInvestorGain();
+        console.log(`📊 Scraped ${ipoData.length} IPOs`);
         
         if (ipoData.length === 0) {
+            console.log('⚠️ No IPO data found');
             return {
                 statusCode: 200,
                 headers,
@@ -185,22 +221,26 @@ exports.handler = async (event, context) => {
         }
         
         // Clear existing data
+        console.log('🗑️ Clearing existing data...');
         const { error: deleteError } = await supabase
             .from('ipo_investorgain')
             .delete()
             .neq('id', 0);
         
         if (deleteError) {
-            console.error('Error clearing existing data:', deleteError);
+            console.error('❌ Error clearing existing data:', deleteError);
+        } else {
+            console.log('✅ Existing data cleared');
         }
         
         // Insert new data
+        console.log('💾 Inserting new data...');
         const { data, error } = await supabase
             .from('ipo_investorgain')
             .insert(ipoData);
         
         if (error) {
-            console.error('Error inserting data:', error);
+            console.error('❌ Error inserting data:', error);
             return {
                 statusCode: 500,
                 headers,
@@ -212,7 +252,7 @@ exports.handler = async (event, context) => {
             };
         }
         
-        console.log(`Successfully saved ${ipoData.length} IPOs`);
+        console.log(`✅ Successfully saved ${ipoData.length} IPOs`);
         
         return {
             statusCode: 200,
@@ -225,7 +265,10 @@ exports.handler = async (event, context) => {
         };
         
     } catch (error) {
-        console.error('Function error:', error);
+        console.error('❌ Function error:', error);
+        console.error('❌ Error stack:', error.stack);
+        console.error('❌ Error name:', error.name);
+        console.error('❌ Error message:', error.message);
         
         return {
             statusCode: 500,
@@ -233,7 +276,8 @@ exports.handler = async (event, context) => {
             body: JSON.stringify({
                 success: false,
                 error: 'Failed to refresh InvestorGain data',
-                details: error.message
+                details: error.message,
+                stack: error.stack
             }),
         };
     }
