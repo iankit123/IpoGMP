@@ -1,0 +1,13 @@
+{
+  "name": "netlify-functions",
+  "version": "1.0.0",
+  "description": "Netlify functions for IPO GMP Tracker",
+  "main": "scrape-investorgain.js",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.38.0",
+    "jsdom": "^22.1.0"
+  },
+  "engines": {
+    "node": "18"
+  }
+}

@@ -543,10 +543,32 @@ async function refreshData(source = 'investorgain') {
         const isProduction = window.location.hostname.includes('netlify.app')
         
         if (isProduction) {
-            // On Netlify, just reload data from Supabase (no local scraper)
-            console.log('🔄 Production mode: Reloading data from Supabase...')
-            await loadIPOData()
-            alert(`✅ Data refreshed from Supabase!\n\nSource: ${source}`)
+            // On Netlify, trigger the Netlify function to scrape InvestorGain
+            console.log('🔄 Production mode: Triggering InvestorGain scraper via Netlify function...')
+            
+            try {
+                const response = await fetch('/.netlify/functions/scrape-investorgain', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                
+                const result = await response.json()
+                
+                if (result.success) {
+                    console.log('✅ InvestorGain scraper completed successfully')
+                    // Reload data from Supabase after scraping
+                    await loadIPOData()
+                    alert(`✅ ${result.message}\n\n📊 ${result.count} IPOs updated from InvestorGain`)
+                } else {
+                    console.error('❌ Scraper failed:', result.error)
+                    alert(`❌ Failed to refresh data: ${result.error}`)
+                }
+            } catch (error) {
+                console.error('❌ Error calling Netlify function:', error)
+                alert(`❌ Failed to refresh data: ${error.message}`)
+            }
             return
         }
         
@@ -594,10 +616,32 @@ async function forceRefresh() {
         const isProduction = window.location.hostname.includes('netlify.app')
         
         if (isProduction) {
-            // On Netlify, just reload data from Supabase (no local scraper)
-            console.log('🔄 Production mode: Force refreshing from Supabase...')
-            await loadIPOData()
-            alert('✅ Data force refreshed from Supabase!')
+            // On Netlify, trigger the Netlify function to scrape InvestorGain
+            console.log('🔄 Production mode: Force triggering InvestorGain scraper via Netlify function...')
+            
+            try {
+                const response = await fetch('/.netlify/functions/scrape-investorgain', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                
+                const result = await response.json()
+                
+                if (result.success) {
+                    console.log('✅ InvestorGain scraper force completed successfully')
+                    // Reload data from Supabase after scraping
+                    await loadIPOData()
+                    alert(`✅ ${result.message}\n\n📊 ${result.count} IPOs force updated from InvestorGain`)
+                } else {
+                    console.error('❌ Force scraper failed:', result.error)
+                    alert(`❌ Failed to force refresh data: ${result.error}`)
+                }
+            } catch (error) {
+                console.error('❌ Error calling Netlify function:', error)
+                alert(`❌ Failed to force refresh data: ${error.message}`)
+            }
             return
         }
         
