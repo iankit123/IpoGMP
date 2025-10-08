@@ -6,7 +6,7 @@ const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cC
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Simple web scraping function using fetch and DOMParser
+// Simple web scraping function using regex parsing (more reliable than jsdom)
 async function scrapeInvestorGain() {
     try {
         console.log('Starting InvestorGain scraping...');
@@ -14,7 +14,12 @@ async function scrapeInvestorGain() {
         // Fetch the InvestorGain page
         const response = await fetch('https://www.investorgain.com/report/live-ipo-gmp/331/all/', {
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1'
             }
         });
         
@@ -25,30 +30,22 @@ async function scrapeInvestorGain() {
         const html = await response.text();
         console.log(`Fetched HTML, length: ${html.length}`);
         
-        // Parse HTML using DOMParser (available in Node.js 18+)
-        const { JSDOM } = require('jsdom');
-        const dom = new JSDOM(html);
-        const document = dom.window.document;
-        
-        // Find the table with IPO data
-        const table = document.querySelector('table');
-        if (!table) {
-            throw new Error('No table found on the page');
-        }
-        
-        const rows = table.querySelectorAll('tr');
-        console.log(`Found ${rows.length} table rows`);
-        
+        // Use regex to extract table data (more reliable than DOM parsing)
         const ipoData = [];
         
-        // Skip header row and process data rows
-        for (let i = 1; i < rows.length; i++) {
-            const row = rows[i];
-            const cells = row.querySelectorAll('td');
+        // Find all table rows with data-label attributes
+        const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/g;
+        const rows = html.match(rowRegex) || [];
+        
+        console.log(`Found ${rows.length} table rows`);
+        
+        for (const row of rows) {
+            // Skip header rows
+            if (row.includes('data-label="Name"') || row.includes('th>')) {
+                continue;
+            }
             
-            if (cells.length < 3) continue;
-            
-            // Extract data using data-label attributes
+            // Extract data using regex patterns
             const ipoInfo = {
                 name: null,
                 gmp_value: null,
@@ -64,52 +61,81 @@ async function scrapeInvestorGain() {
                 is_active: true
             };
             
-            // Parse each cell
-            cells.forEach(cell => {
-                const dataLabel = cell.getAttribute('data-label')?.toLowerCase();
-                const cellText = cell.textContent.trim();
-                
-                if (dataLabel === 'name') {
-                    ipoInfo.name = cellText;
-                } else if (dataLabel === 'gmp') {
-                    const gmpMatch = cellText.match(/₹?(\d+(?:\.\d+)?)/);
-                    if (gmpMatch) {
-                        ipoInfo.gmp_value = parseFloat(gmpMatch[1]);
-                    }
-                    
-                    const percentMatch = cellText.match(/\((\d+(?:\.\d+)?)%\)/);
-                    if (percentMatch) {
-                        ipoInfo.gmp_percentage = parseFloat(percentMatch[1]);
-                    }
-                } else if (dataLabel === 'price') {
-                    const priceMatch = cellText.match(/₹?(\d+(?:\.\d+)?)/);
-                    if (priceMatch) {
-                        ipoInfo.price = parseFloat(priceMatch[1]);
-                    }
-                } else if (dataLabel === 'ipo size') {
-                    const sizeMatch = cellText.match(/₹?(\d+(?:\.\d+)?)/);
-                    if (sizeMatch) {
-                        ipoInfo.ipo_size = parseFloat(sizeMatch[1]);
-                    }
-                } else if (dataLabel === 'lot') {
-                    const lotMatch = cellText.match(/(\d+)/);
-                    if (lotMatch) {
-                        ipoInfo.lot_size = parseInt(lotMatch[1]);
-                    }
-                } else if (dataLabel === 'sub') {
-                    const subMatch = cellText.match(/(\d+(?:\.\d+)?)x?/);
-                    if (subMatch) {
-                        ipoInfo.subscription_multiple = parseFloat(subMatch[1]);
-                    }
-                } else if (dataLabel === 'open') {
-                    ipoInfo.open_date = cellText;
-                } else if (dataLabel === 'close') {
-                    ipoInfo.close_date = cellText;
+            // Extract name
+            const nameMatch = row.match(/data-label="Name"[^>]*>([^<]+)</);
+            if (nameMatch) {
+                ipoInfo.name = nameMatch[1].trim();
+            }
+            
+            // Extract GMP value and percentage
+            const gmpMatch = row.match(/data-label="GMP"[^>]*>([^<]+)</);
+            if (gmpMatch) {
+                const gmpText = gmpMatch[1].trim();
+                const valueMatch = gmpText.match(/₹?(\d+(?:\.\d+)?)/);
+                if (valueMatch) {
+                    ipoInfo.gmp_value = parseFloat(valueMatch[1]);
                 }
-            });
+                
+                const percentMatch = gmpText.match(/\((\d+(?:\.\d+)?)%\)/);
+                if (percentMatch) {
+                    ipoInfo.gmp_percentage = parseFloat(percentMatch[1]);
+                }
+            }
+            
+            // Extract price
+            const priceMatch = row.match(/data-label="Price"[^>]*>([^<]+)</);
+            if (priceMatch) {
+                const priceText = priceMatch[1].trim();
+                const valueMatch = priceText.match(/₹?(\d+(?:\.\d+)?)/);
+                if (valueMatch) {
+                    ipoInfo.price = parseFloat(valueMatch[1]);
+                }
+            }
+            
+            // Extract IPO size
+            const sizeMatch = row.match(/data-label="IPO Size"[^>]*>([^<]+)</);
+            if (sizeMatch) {
+                const sizeText = sizeMatch[1].trim();
+                const valueMatch = sizeText.match(/₹?(\d+(?:\.\d+)?)/);
+                if (valueMatch) {
+                    ipoInfo.ipo_size = parseFloat(valueMatch[1]);
+                }
+            }
+            
+            // Extract lot size
+            const lotMatch = row.match(/data-label="Lot"[^>]*>([^<]+)</);
+            if (lotMatch) {
+                const lotText = lotMatch[1].trim();
+                const valueMatch = lotText.match(/(\d+)/);
+                if (valueMatch) {
+                    ipoInfo.lot_size = parseInt(valueMatch[1]);
+                }
+            }
+            
+            // Extract subscription multiple
+            const subMatch = row.match(/data-label="Sub"[^>]*>([^<]+)</);
+            if (subMatch) {
+                const subText = subMatch[1].trim();
+                const valueMatch = subText.match(/(\d+(?:\.\d+)?)x?/);
+                if (valueMatch) {
+                    ipoInfo.subscription_multiple = parseFloat(valueMatch[1]);
+                }
+            }
+            
+            // Extract open date
+            const openMatch = row.match(/data-label="Open"[^>]*>([^<]+)</);
+            if (openMatch) {
+                ipoInfo.open_date = openMatch[1].trim();
+            }
+            
+            // Extract close date
+            const closeMatch = row.match(/data-label="Close"[^>]*>([^<]+)</);
+            if (closeMatch) {
+                ipoInfo.close_date = closeMatch[1].trim();
+            }
             
             // Only add if we have a name
-            if (ipoInfo.name && ipoInfo.name !== 'Loading...') {
+            if (ipoInfo.name && ipoInfo.name !== 'Loading...' && ipoInfo.name.length > 0) {
                 ipoData.push(ipoInfo);
             }
         }
