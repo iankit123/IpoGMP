@@ -23,6 +23,13 @@ document.addEventListener('DOMContentLoaded', function() {
     setupEventListeners()
     loadIPOData()
     
+    // Auto-refresh data when app opens (after initial load)
+    setTimeout(() => {
+        console.log('🔄 Auto-refreshing data on app open...')
+        showAutoRefreshIndicator()
+        refreshData('investorgain')
+    }, 2000) // Wait 2 seconds after initial load
+    
     // Auto-refresh data every 5 minutes
     setInterval(() => {
         console.log('Auto-refreshing data...')
@@ -412,6 +419,28 @@ function showLoading(show) {
         `
         feather.replace()
     }
+}
+
+function showAutoRefreshIndicator() {
+    // Create a temporary notification for auto-refresh
+    const indicator = document.createElement('div')
+    indicator.className = 'alert alert-info alert-dismissible fade show position-fixed'
+    indicator.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;'
+    indicator.innerHTML = `
+        <i data-feather="refresh-cw" class="me-2"></i>
+        <strong>Auto-refreshing data...</strong>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `
+    
+    document.body.appendChild(indicator)
+    feather.replace()
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        if (indicator.parentNode) {
+            indicator.remove()
+        }
+    }, 3000)
 }
 
 function showError(message) {

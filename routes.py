@@ -19,7 +19,7 @@ def index():
         
         # Get only currently open IPOs (must have open/close dates and close_date >= today), ordered by GMP percentage (descending)
         # Exclude closed IPOs (close_date < today)
-        ipos = IPO.query.filter(
+        ipos = IPO.query.filter(    
             IPO.is_active == True,
             IPO.open_date != None,
             IPO.close_date != None,
