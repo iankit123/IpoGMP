@@ -6,23 +6,78 @@ const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cC
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Temporary solution: Return mock data while we work on the Python API deployment
+// Real InvestorGain API scraper
 async function scrapeInvestorGain() {
     try {
-        console.log('🌐 Starting InvestorGain scraping (temporary mock)...');
+        console.log('🌐 Starting InvestorGain API scraping...');
         
-        // For now, return a mock response indicating the issue
-        // This will help us test the UI integration while we work on the real solution
-        console.log('⚠️ Using temporary mock response - InvestorGain requires dynamic content loading');
-        
-        return {
-            success: true,
-            count: 0,
-            message: 'InvestorGain scraping temporarily unavailable - requires dynamic content loading. Working on solution...'
+        // --- Compute dynamic financial year ---
+        const now = new Date();
+        const year = now.getMonth() < 3 ? now.getFullYear() - 1 : now.getFullYear();
+        const fyEnd = String(year + 1).slice(-2);
+        const financialYear = `${year}-${fyEnd}`;
+
+        // --- Random cache buster ---
+        const v = `15-${Math.floor(40 + Math.random() * 60)}`;
+
+        const url = `https://webnodejs.investorgain.com/cloud/report/data-read/331/1/10/${year}/${financialYear}/0/all?search=&v=${v}`;
+
+        console.log('📡 Fetching from InvestorGain API:', url);
+
+        const headers = {
+            "accept": "application/json, text/plain, */*",
+            "origin": "https://www.investorgain.com",
+            "referer": "https://www.investorgain.com/",
+            "user-agent": "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Mobile Safari/537.36",
         };
+
+        const response = await fetch(url, { headers });
+        const status = response.status;
+        const json = await response.json();
+
+        console.log('📡 API Response status:', status);
+        console.log('📡 API Response keys:', Object.keys(json));
+
+        if (status !== 200 || !json.reportTableData) {
+            throw new Error(`Unexpected API response: ${status}, data: ${JSON.stringify(json)}`);
+        }
+
+        const rows = json.reportTableData;
+        console.log(`📊 Found ${rows.length} IPO records from API`);
+
+        // --- Clean text fields ---
+        const clean = (str) =>
+            typeof str === "string"
+                ? str
+                    .replace(/<[^>]+>/g, "")
+                    .replace(/&#8377;/g, "₹")
+                    .replace(/&.*?;/g, "")
+                    .trim()
+                : str;
+
+        const ipoData = rows.map((r) => ({
+            name: clean(r["~ipo_name"]),
+            gmp_value: parseFloat(clean(r["GMP"]).replace(/[₹,]/g, '')) || null,
+            gmp_percentage: parseFloat(clean(r["GMP"]).match(/\((\d+(?:\.\d+)?)%\)/)?.[1]) || null,
+            price: parseFloat(clean(r["Price"]).replace(/[₹,]/g, '')) || null,
+            ipo_size: clean(r["IPO Size"]),
+            lot_size: parseInt(clean(r["Lot"])) || null,
+            subscription_multiple: parseFloat(clean(r["Sub"]).replace('x', '')) || null,
+            open_date: clean(r["Open"]),
+            close_date: clean(r["Close"]),
+            listing_date: clean(r["Listing"]),
+            updated_on: new Date().toISOString(),
+            data_source: 'investorgain',
+            is_active: true,
+            category: clean(r["~IPO_Category"]),
+            link: "https://www.investorgain.com" + (r["~urlrewrite_folder_name"] || '')
+        }));
+
+        console.log(`✅ Successfully parsed ${ipoData.length} IPOs from API`);
+        return ipoData;
         
     } catch (error) {
-        console.error('❌ Error in mock scraper:', error);
+        console.error('❌ Error scraping InvestorGain API:', error);
         console.error('❌ Error stack:', error.stack);
         throw error;
     }
@@ -60,33 +115,65 @@ exports.handler = async (event, context) => {
         console.log('🔍 Supabase URL:', supabaseUrl);
         console.log('🔍 Supabase Key length:', supabaseKey ? supabaseKey.length : 'undefined');
         
-        // Call Python API to scrape data
-        console.log('🌐 Starting web scraping via Python API...');
-        const result = await scrapeInvestorGain();
-        console.log(`📊 Python API result:`, result);
+        // Scrape data from InvestorGain API
+        console.log('🌐 Starting InvestorGain API scraping...');
+        const ipoData = await scrapeInvestorGain();
+        console.log(`📊 Scraped ${ipoData.length} IPOs from API`);
         
-        if (!result.success) {
-            console.log('⚠️ Python API failed');
+        if (ipoData.length === 0) {
+            console.log('⚠️ No IPO data found from API');
             return {
                 statusCode: 200,
                 headers,
                 body: JSON.stringify({
                     success: false,
-                    message: 'Python API failed to scrape data',
+                    message: 'No IPO data found from InvestorGain API',
                     count: 0
                 }),
             };
         }
         
-        console.log(`✅ Python API successfully processed ${result.count} IPOs`);
+        // Clear existing data
+        console.log('🗑️ Clearing existing data...');
+        const { error: deleteError } = await supabase
+            .from('ipo_investorgain')
+            .delete()
+            .neq('id', 0);
+        
+        if (deleteError) {
+            console.error('❌ Error clearing existing data:', deleteError);
+        } else {
+            console.log('✅ Existing data cleared');
+        }
+        
+        // Insert new data
+        console.log('💾 Inserting new data...');
+        const { data, error } = await supabase
+            .from('ipo_investorgain')
+            .insert(ipoData);
+        
+        if (error) {
+            console.error('❌ Error inserting data:', error);
+            return {
+                statusCode: 500,
+                headers,
+                body: JSON.stringify({
+                    success: false,
+                    error: 'Failed to save data to database',
+                    details: error.message
+                }),
+            };
+        }
+        
+        console.log(`✅ Successfully saved ${ipoData.length} IPOs to Supabase`);
         
         return {
             statusCode: 200,
             headers,
             body: JSON.stringify({
                 success: true,
-                message: result.message || `InvestorGain data refreshed successfully! ${result.count} IPOs updated.`,
-                count: result.count
+                message: `InvestorGain data refreshed successfully! ${ipoData.length} IPOs updated.`,
+                count: ipoData.length
             }),
         };
         
