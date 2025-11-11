@@ -1,4 +1,4 @@
-from flask import render_template, request, jsonify, redirect, url_for, make_response
+from flask import render_template, request, jsonify, redirect, url_for, make_response, send_file, send_from_directory
 from app import app, db
 from models import IPO, PushSubscription
 from scraper import scrape_and_update
@@ -12,35 +12,15 @@ logger = logging.getLogger(__name__)
 
 @app.route('/')
 def index():
-    """Main dashboard page"""
+    """Serve the static PWA interface from public directory"""
     try:
-        from datetime import datetime
-        today = datetime.now().date()
-        
-        # Get only currently open IPOs (must have open/close dates and close_date >= today), ordered by GMP percentage (descending)
-        # Exclude closed IPOs (close_date < today)
-        ipos = IPO.query.filter(    
-            IPO.is_active == True,
-            IPO.open_date != None,
-            IPO.close_date != None,
-            IPO.close_date >= today  # Only show IPOs that haven't closed yet
-        ).order_by(IPO.gmp_percentage.desc().nullslast()).all()
-        
-        logger.info(f"Dashboard: Found {len(ipos)} currently open IPOs")
-        for i, ipo in enumerate(ipos[:3]):  # Log first 3 IPOs for debugging
-            logger.info(f"IPO {i+1}: {ipo.name} - GMP: {ipo.gmp_percentage}% - Open: {ipo.open_date} - Close: {ipo.close_date}")
-        
-        # Create response with no-cache headers
-        response = make_response(render_template('index.html', ipos=ipos, today=datetime.now()))
-        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        response.headers['Pragma'] = 'no-cache'
-        response.headers['Expires'] = '0'
-        return response
+        return send_file('public/index.html')
     except Exception as e:
-        logger.error(f"Error loading dashboard: {e}")
+        logger.error(f"Error serving static index: {e}")
         import traceback
         logger.error(f"Traceback: {traceback.format_exc()}")
-        return render_template('index.html', ipos=[], error="Error loading IPO data", today=datetime.now())
+        # Fallback to a simple error page
+        return "<h1>Error loading page</h1><p>Please check server logs.</p>", 500
 
 @app.route('/api/ipos')
 def api_ipos():
@@ -246,25 +226,44 @@ def force_refresh_investorgain():
 
 @app.route('/manifest.json')
 def manifest():
-    """Serve PWA manifest"""
-    return app.send_static_file('manifest.json')
+    """Serve PWA manifest from public directory"""
+    return send_file('public/manifest.json')
 
 @app.route('/sw.js')
 def service_worker():
-    """Serve service worker"""
-    response = app.send_static_file('sw.js')
+    """Serve service worker from public directory"""
+    response = send_file('public/sw.js')
     response.headers['Content-Type'] = 'application/javascript'
     response.headers['Service-Worker-Allowed'] = '/'
     return response
 
+@app.route('/app.js')
+def app_js():
+    """Serve the main app JavaScript from public directory"""
+    return send_file('public/app.js')
+
+@app.route('/icons/<path:filename>')
+def icons(filename):
+    """Serve PWA icons from public directory"""
+    return send_from_directory('public/icons', filename)
+
 @app.errorhandler(404)
 def not_found(error):
     """Handle 404 errors"""
-    return render_template('index.html', error="Page not found"), 404
+    try:
+        return send_file('public/index.html'), 404
+    except:
+        return "<h1>Page not found</h1>", 404
 
 @app.errorhandler(500)
 def internal_error(error):
     """Handle 500 errors"""
     logger.error(f"Internal server error: {error}")
-    db.session.rollback()
-    return render_template('index.html', error="Internal server error"), 500
+    try:
+        db.session.rollback()
+    except:
+        pass
+    try:
+        return send_file('public/index.html'), 500
+    except:
+        return "<h1>Internal server error</h1>", 500

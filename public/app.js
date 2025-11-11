@@ -101,12 +101,38 @@ async function loadIPOData() {
             // Don't fail completely, just log the error
         }
         
+        // Debug logging
+        console.log('📊 Raw IPO data from Supabase:', {
+            iposCount: iposResult.data?.length || 0,
+            investorgainCount: investorgainResult.data?.length || 0,
+            iposSample: iposResult.data?.slice(0, 2),
+            investorgainSample: investorgainResult.data?.slice(0, 2)
+        })
+        
         // Process IPO Watch data
         const today = new Date().toISOString().split('T')[0]
+        const todayDate = new Date(today)
+        console.log('📅 Filtering for IPOs with close_date >=', today)
+        console.log('📅 Today date object:', todayDate)
+        
+        // Log sample dates to debug format
+        if (iposResult.data && iposResult.data.length > 0) {
+            const sample = iposResult.data[0]
+            console.log('📅 Sample IPO date format:', {
+                open_date: sample.open_date,
+                close_date: sample.close_date,
+                close_date_type: typeof sample.close_date,
+                close_date_parsed: new Date(sample.close_date)
+            })
+        }
         
         allIPOs = (iposResult.data || [])
             .filter(ipo => ipo.open_date && ipo.close_date)
-            .filter(ipo => ipo.close_date >= today)
+            .filter(ipo => {
+                // Handle both string and date formats
+                const closeDate = ipo.close_date ? new Date(ipo.close_date).toISOString().split('T')[0] : null
+                return closeDate && closeDate >= today
+            })
             .sort((a, b) => {
                 const todayDate = new Date()
                 const aOpen = new Date(a.open_date)
@@ -133,7 +159,11 @@ async function loadIPOData() {
         // Process InvestorGain data
         allInvestorGainIPOs = (investorgainResult.data || [])
             .filter(ipo => ipo.open_date && ipo.close_date)
-            .filter(ipo => ipo.close_date >= today)
+            .filter(ipo => {
+                // Handle both string and date formats
+                const closeDate = ipo.close_date ? new Date(ipo.close_date).toISOString().split('T')[0] : null
+                return closeDate && closeDate >= today
+            })
             .sort((a, b) => {
                 const todayDate = new Date()
                 const aOpen = new Date(a.open_date)
@@ -164,7 +194,18 @@ async function loadIPOData() {
             filteredIPOs = [...allIPOs]
         }
         
-        console.log(`Loaded ${allIPOs.length} primary IPOs and ${allInvestorGainIPOs.length} secondary IPOs`)
+        console.log(`📊 Loaded ${allIPOs.length} primary IPOs and ${allInvestorGainIPOs.length} secondary IPOs`)
+        console.log(`📊 After filtering (close_date >= today): ${allIPOs.length} primary, ${allInvestorGainIPOs.length} secondary`)
+        
+        // If no data, log more details
+        if (allIPOs.length === 0 && allInvestorGainIPOs.length === 0) {
+            console.warn('⚠️ No IPOs found. Possible reasons:')
+            console.warn('  1. Tables are empty in Supabase')
+            console.warn('  2. All IPOs have close_date < today')
+            console.warn('  3. RLS policies might be blocking access')
+            console.warn('  4. Data might be in different tables')
+            console.warn(`  Raw data counts: ${iposResult.data?.length || 0} from 'ipos', ${investorgainResult.data?.length || 0} from 'ipo_investorgain'`)
+        }
         
         updateStatusCards()
         updateDataSourceIndicator()
@@ -187,23 +228,34 @@ function updateDataSourceIndicator() {
 }
 
 function updateStatusCards() {
+    // Use the current data source (filteredIPOs) which reflects what's actually displayed
+    const dataToUse = filteredIPOs.length > 0 ? filteredIPOs : (currentDataSource === 'investorgain' ? allInvestorGainIPOs : allIPOs)
+    
     const today = new Date()
-    const openIPOs = allIPOs.filter(ipo => {
+    const openIPOs = dataToUse.filter(ipo => {
         if (!ipo.open_date || !ipo.close_date) return false
         const openDate = new Date(ipo.open_date)
         const closeDate = new Date(ipo.close_date)
         return today >= openDate && today <= closeDate
     })
     
-    const upcomingIPOs = allIPOs.filter(ipo => {
+    const upcomingIPOs = dataToUse.filter(ipo => {
         if (!ipo.open_date) return false
         const openDate = new Date(ipo.open_date)
         return today < openDate
     })
     
-    document.getElementById('total-ipos').textContent = allIPOs.length
+    document.getElementById('total-ipos').textContent = dataToUse.length
     document.getElementById('open-ipos').textContent = openIPOs.length
     document.getElementById('upcoming-ipos').textContent = upcomingIPOs.length
+    
+    // Debug logging
+    console.log('📊 Status cards updated:', {
+        total: dataToUse.length,
+        open: openIPOs.length,
+        upcoming: upcomingIPOs.length,
+        dataSource: currentDataSource
+    })
 }
 
 function renderIPOCards() {
@@ -559,17 +611,21 @@ window.debugApiConnectivity = async function() {
 // Menu functions
 async function refreshData(source = 'investorgain') {
     try {
-        console.log(`🔄 Triggering InvestorGain scraper to fetch latest data...`)
-        
         // Update current data source
         currentDataSource = source
+        
+        // Check if we're on Netlify (production) or local development
+        const isProduction = window.location.hostname.includes('netlify.app')
+        
+        if (isProduction) {
+            console.log(`🔄 Triggering InvestorGain scraper to fetch latest data...`)
+        } else {
+            console.log(`🔄 Reloading data from Supabase...`)
+        }
         
         // Show loading state
         const originalContent = document.getElementById('ipo-container').innerHTML
         showLoading(true)
-        
-        // Check if we're on Netlify (production) or local development
-        const isProduction = window.location.hostname.includes('netlify.app')
         
         if (isProduction) {
             // On Netlify, trigger the Netlify function to scrape InvestorGain
@@ -617,26 +673,10 @@ async function refreshData(source = 'investorgain') {
             return
         }
         
-        // Local development: Trigger InvestorGain scraper
-        console.log('🔄 Local mode: Triggering InvestorGain scraper...')
-        const response = await fetch('http://localhost:3001/api/refresh-investorgain', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        })
-        
-        const result = await response.json()
-        
-        if (result.success) {
-            console.log('✅ InvestorGain scraper completed successfully')
-            // Reload data from Supabase after scraping
-            await loadIPOData()
-            alert(`✅ ${result.message}\n\n📊 ${result.count} IPOs updated from InvestorGain`)
-        } else {
-            console.error('❌ InvestorGain scraper failed:', result.message)
-            alert(`❌ ${result.message}`)
-        }
+        // Local development: Just reload from Supabase (same as production behavior)
+        console.log('🔄 Local mode: Reloading data from Supabase...')
+        await loadIPOData()
+        console.log('✅ Data reloaded from Supabase')
         
     } catch (error) {
         console.error('❌ Error refreshing data:', error)
@@ -690,26 +730,10 @@ async function forceRefresh() {
             return
         }
         
-        // Local development: Trigger InvestorGain scraper
-        console.log('🔄 Local mode: Force triggering InvestorGain scraper...')
-        const response = await fetch('http://localhost:3001/api/force-refresh-investorgain', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        })
-        
-        const result = await response.json()
-        
-        if (result.success) {
-            console.log('✅ InvestorGain scraper force completed successfully')
-            // Reload data from Supabase after scraping
-            await loadIPOData()
-            alert(`✅ ${result.message}\n\n📊 ${result.count} IPOs force updated from InvestorGain`)
-        } else {
-            console.error('❌ InvestorGain scraper force failed:', result.message)
-            alert(`❌ ${result.message}`)
-        }
+        // Local development: Just reload from Supabase (same as production behavior)
+        console.log('🔄 Local mode: Force reloading data from Supabase...')
+        await loadIPOData()
+        console.log('✅ Data force reloaded from Supabase')
         
     } catch (error) {
         console.error('❌ Error force refreshing data:', error)

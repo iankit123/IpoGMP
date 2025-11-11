@@ -2,8 +2,12 @@ from datetime import datetime
 from sqlalchemy import DateTime, String, Float, Boolean, Text
 from flask_sqlalchemy import SQLAlchemy
 
-# This will be set by app.py
-db = None
+# Import db from app - will be available after app initialization
+try:
+    from app import db
+except ImportError:
+    # Fallback for when app hasn't initialized yet
+    db = None
 
 class IPO(db.Model):
     """Model for storing IPO data"""
