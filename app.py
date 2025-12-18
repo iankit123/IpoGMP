@@ -1,17 +1,11 @@
 import os
 import logging
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
+from extensions import db
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
-
-class Base(DeclarativeBase):
-    pass
-
-db = SQLAlchemy(model_class=Base)
 
 # Create the app
 app = Flask(__name__)
@@ -74,8 +68,9 @@ def initialize_app():
             db.create_all()
             logging.info("Database tables created successfully")
             
-            # Import routes
-            import routes
+            # Register blueprints
+            from routes import main_bp
+            app.register_blueprint(main_bp)
             
             # Start scheduler
             from scheduler import start_scheduler
@@ -85,8 +80,10 @@ def initialize_app():
         logging.error(f"Failed to initialize application: {e}")
         logging.error("Application will continue with limited functionality")
         # Import routes even if database fails to allow basic error pages
+        # Import routes even if database fails to allow basic error pages
         try:
-            import routes
+            from routes import main_bp
+            app.register_blueprint(main_bp)
         except Exception as route_error:
             logging.error(f"Failed to import routes: {route_error}")
 

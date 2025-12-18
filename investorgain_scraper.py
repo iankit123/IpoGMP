@@ -113,7 +113,7 @@ class InvestorGainScraper:
                 headers = [th.get_text(strip=True).lower() for th in first_row.find_all(['th', 'td'])]
                 
                 # Look for expected columns
-                expected_columns = ['name', 'gmp', 'price', 'ipo size', 'lot', 'sub', 'open', 'close', 'updated']
+                expected_columns = ['name', 'gmp', 'Price (₹)', 'IPO Size (₹ in cr)', 'lot', 'sub', 'open', 'close', 'Updated-On']
                 if any(col in ' '.join(headers) for col in expected_columns):
                     logger.info("Found IPO GMP table structure")
                     

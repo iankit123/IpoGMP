@@ -4,7 +4,7 @@ import logging
 from datetime import datetime, timedelta
 import re
 from models import IPO
-from app import db
+from extensions import db
 
 logger = logging.getLogger(__name__)
 

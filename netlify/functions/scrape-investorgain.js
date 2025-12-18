@@ -85,26 +85,20 @@ async function scrapeInvestorGain() {
 
         const ipoData = rows.map((r, index) => {
             try {
-                // Log raw row data for first few records
-                if (index < 3) {
-                    console.log(`📋 Raw row ${index + 1} keys:`, Object.keys(r));
-                    console.log(`📋 Raw row ${index + 1} sample:`, JSON.stringify(r).substring(0, 300));
-                }
-                
                 // Helper function to handle date fields
                 const parseDate = (dateStr) => {
                     const cleaned = clean(dateStr);
-                    if (!cleaned || cleaned.trim() === '' || cleaned === '-' || cleaned === 'N/A') {
+                    if (!cleaned || cleaned.trim() === '') {
                         return null;
                     }
                     
                     // Convert "14-Oct" format to "YYYY-MM-DD" format for PostgreSQL DATE type
                     try {
                         // Parse "14-Oct" format
-                        const match = cleaned.match(/(\d{1,2})-([A-Za-z]{3})/i);
+                        const match = cleaned.match(/(\d{1,2})-([A-Za-z]{3})/);
                         if (match) {
                             const day = match[1].padStart(2, '0');
-                            const monthName = match[2].charAt(0).toUpperCase() + match[2].slice(1).toLowerCase();
+                            const monthName = match[2];
                             
                             // Map month names to numbers
                             const monthMap = {
@@ -120,41 +114,11 @@ async function scrapeInvestorGain() {
                             }
                         }
                         
-                        // Try to parse other date formats (DD-MM-YYYY, YYYY-MM-DD, etc.)
-                        const dateFormats = [
-                            /(\d{2})-(\d{2})-(\d{4})/,  // DD-MM-YYYY
-                            /(\d{4})-(\d{2})-(\d{2})/,  // YYYY-MM-DD
-                            /(\d{1,2})\/(\d{1,2})\/(\d{4})/,  // DD/MM/YYYY or MM/DD/YYYY
-                        ];
-                        
-                        for (const format of dateFormats) {
-                            const match = cleaned.match(format);
-                            if (match) {
-                                // Try DD-MM-YYYY first
-                                if (format === dateFormats[0]) {
-                                    return `${match[3]}-${match[2]}-${match[1]}`;
-                                }
-                                // YYYY-MM-DD
-                                if (format === dateFormats[1]) {
-                                    return cleaned;
-                                }
-                                // DD/MM/YYYY
-                                if (format === dateFormats[2]) {
-                                    // Assume DD/MM/YYYY format
-                                    return `${match[3]}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}`;
-                                }
-                            }
-                        }
-                        
                         // If parsing fails, return null to avoid database errors
-                        if (index < 5) {
-                            console.warn(`⚠️ Could not parse date: ${cleaned} (row ${index + 1})`);
-                        }
+                        console.warn(`⚠️ Could not parse date: ${cleaned}`);
                         return null;
                     } catch (error) {
-                        if (index < 5) {
-                            console.error(`❌ Error parsing date ${cleaned}:`, error);
-                        }
+                        console.error(`❌ Error parsing date ${cleaned}:`, error);
                         return null;
                     }
                 };
@@ -191,27 +155,16 @@ async function scrapeInvestorGain() {
                     gmpValue = safeParseFloat(gmpStr);
                 }
                 
-                // Extract name with multiple fallback options
-                const ipoName = clean(r["~ipo_name"] || r["IPO Name"] || r["Name"] || r["ipo_name"] || '');
-                
-                // Skip if name is empty
-                if (!ipoName || ipoName.trim() === '') {
-                    if (index < 5) {
-                        console.warn(`⚠️ Skipping row ${index + 1}: empty name. Raw row:`, JSON.stringify(r).substring(0, 200));
-                    }
-                    return null;
-                }
-                
                 const ipo = {
-                    name: ipoName,
+                    name: clean(r["~ipo_name"] || r["IPO Name"] || r["Name"] || ''),
                     gmp_value: gmpValue,
                     gmp_percentage: gmpPercentage,
-                    price: safeParseFloat(r["Price"] || r["Issue Price"] || r["price"] || ''),
-                    ipo_size: safeParseFloat(r["IPO Size"] || r["Size"] || r["ipo_size"] || r["size"] || ''),
-                    lot_size: safeParseInt(r["Lot"] || r["Lot Size"] || r["lot"] || r["lot_size"] || ''),
-                    subscription_multiple: safeParseFloat(r["Sub"] || r["Subscription"] || r["sub"] || r["subscription"] || ''),
-                    open_date: parseDate(r["Open"] || r["Open Date"] || r["open"] || r["open_date"] || ''),
-                    close_date: parseDate(r["Close"] || r["Close Date"] || r["close"] || r["close_date"] || ''),
+                    price: safeParseFloat(r["Price"] || r["Issue Price"] || ''),
+                    ipo_size: safeParseFloat(r["IPO Size"] || r["Size"] || ''),
+                    lot_size: safeParseInt(r["Lot"] || r["Lot Size"] || ''),
+                    subscription_multiple: safeParseFloat(r["Sub"] || r["Subscription"] || ''),
+                    open_date: parseDate(r["Open"] || r["Open Date"] || ''),
+                    close_date: parseDate(r["Close"] || r["Close Date"] || ''),
                     updated_on: new Date().toISOString(),
                     data_source: 'investorgain',
                     is_active: true
@@ -219,7 +172,7 @@ async function scrapeInvestorGain() {
                 
                 // Log first few records for debugging
                 if (index < 3) {
-                    console.log(`📋 Sample IPO ${index + 1}:`, JSON.stringify(ipo, null, 2));
+                    console.log(`📋 Sample IPO ${index + 1}:`, ipo);
                 }
                 
                 return ipo;
@@ -233,16 +186,7 @@ async function scrapeInvestorGain() {
         console.log(`✅ Successfully parsed ${ipoData.length} IPOs from API (from ${rows.length} raw rows)`);
         
         if (ipoData.length === 0 && rows.length > 0) {
-            console.error('⚠️ All rows were filtered out!');
-            console.error('⚠️ Sample raw row (first 3):');
-            rows.slice(0, 3).forEach((row, idx) => {
-                console.error(`   Row ${idx + 1}:`, JSON.stringify(row, null, 2).substring(0, 500));
-            });
-            console.error('⚠️ Checking field names in first row:', Object.keys(rows[0] || {}));
-        }
-        
-        if (ipoData.length === 0 && rows.length === 0) {
-            console.error('⚠️ API returned empty array. Full response structure:', JSON.stringify(json, null, 2).substring(0, 2000));
+            console.error('⚠️ All rows were filtered out! Sample raw row:', JSON.stringify(rows[0], null, 2));
         }
         
         return ipoData;

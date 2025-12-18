@@ -88,7 +88,7 @@ def cleanup_job():
         # Remove old inactive IPOs (older than 30 days)
         from datetime import datetime, timedelta
         from models import IPO, PushSubscription
-        from app import db
+        from extensions import db
         
         cutoff_date = datetime.utcnow() - timedelta(days=30)
         

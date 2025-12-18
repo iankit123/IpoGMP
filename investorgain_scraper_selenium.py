@@ -125,12 +125,16 @@ class InvestorGainScraperSelenium:
                 'is_active': True
             }
             
+            # Log all available keys for debugging
+            available_labels = [cell.get('data-label', '') for cell in cells_with_labels]
+            logger.info(f"Row labels: {available_labels}")
+
             # Extract data from each cell based on its data-label
             for cell in cells_with_labels:
-                data_label = cell.get('data-label', '').lower()
+                data_label = cell.get('data-label', '').lower().strip()
                 cell_text = cell.get_text(strip=True)
                 
-                if data_label == 'name' or data_label == 'ipo name':
+                if data_label in ['name', 'ipo name', 'company']:
                     # Extract name from the cell (might be in an <a> tag)
                     name_link = cell.find('a')
                     if name_link:
@@ -138,29 +142,29 @@ class InvestorGainScraperSelenium:
                     else:
                         ipo_info['name'] = cell_text
                 
-                elif data_label == 'gmp':
+                elif 'gmp' in data_label:
                     # Parse GMP value and percentage
                     gmp_value, gmp_percentage = self._parse_gmp_from_structured_cell(cell)
                     ipo_info['gmp_value'] = gmp_value
                     ipo_info['gmp_percentage'] = gmp_percentage
                 
-                elif data_label == 'price':
+                elif 'price' in data_label:
                     ipo_info['price'] = self._parse_number(cell_text)
                 
-                elif data_label == 'ipo size':
+                elif 'size' in data_label:
                     ipo_info['ipo_size'] = self._parse_number(cell_text)
                 
-                elif data_label == 'lot':
+                elif 'lot' in data_label:
                     lot_size = self._parse_number(cell_text)
                     ipo_info['lot_size'] = int(lot_size) if lot_size else None
                 
-                elif data_label == 'open':
+                elif 'open' in data_label:
                     ipo_info['open_date'] = self._parse_date(cell_text)
                 
-                elif data_label == 'close':
+                elif 'close' in data_label:
                     ipo_info['close_date'] = self._parse_date(cell_text)
                 
-                elif data_label == 'sub':
+                elif 'sub' in data_label:
                     # Parse subscription multiple (e.g., "0.39x")
                     subscription_text = cell_text.replace('x', '').replace('X', '')
                     ipo_info['subscription_multiple'] = self._parse_number(subscription_text)
@@ -301,7 +305,7 @@ def scrape_investorgain_selenium():
         # Print summary of scraped data
         print("\n📊 Scraped IPO Summary:")
         for ipo in ipo_data:
-            print(f"  • {ipo['name']}: GMP ₹{ipo.get('gmp_value', 'N/A')} ({ipo.get('gmp_percentage', 'N/A')}%)")
+            print(f"  • {ipo['name']}: GMP ₹{ipo.get('gmp_value', 'N/A')} | Price: {ipo.get('price', 'N/A')} | Size: {ipo.get('ipo_size', 'N/A')}")
         
         return saved_count
     else:

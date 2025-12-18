@@ -1,5 +1,5 @@
-from flask import render_template, request, jsonify, redirect, url_for, make_response, send_file, send_from_directory
-from app import app, db
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, make_response, send_file, send_from_directory
+from extensions import db
 from models import IPO, PushSubscription
 from scraper import scrape_and_update
 from notifications import notification_manager
@@ -10,7 +10,9 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
-@app.route('/')
+main_bp = Blueprint('main', __name__)
+
+@main_bp.route('/')
 def index():
     """Serve the static PWA interface from public directory"""
     try:
@@ -22,7 +24,7 @@ def index():
         # Fallback to a simple error page
         return "<h1>Error loading page</h1><p>Please check server logs.</p>", 500
 
-@app.route('/api/ipos')
+@main_bp.route('/api/ipos')
 def api_ipos():
     """API endpoint to get IPO data as JSON"""
     try:
@@ -46,7 +48,7 @@ def api_ipos():
         logger.error(f"API Traceback: {traceback.format_exc()}")
         return jsonify({'error': 'Failed to fetch IPO data'}), 500
 
-@app.route('/api/subscribe', methods=['POST'])
+@main_bp.route('/api/subscribe', methods=['POST'])
 def subscribe_notifications():
     """Subscribe to push notifications"""
     try:
@@ -82,7 +84,7 @@ def subscribe_notifications():
         db.session.rollback()
         return jsonify({'error': 'Failed to save subscription'}), 500
 
-@app.route('/api/unsubscribe', methods=['POST'])
+@main_bp.route('/api/unsubscribe', methods=['POST'])
 def unsubscribe_notifications():
     """Unsubscribe from push notifications"""
     try:
@@ -107,7 +109,7 @@ def unsubscribe_notifications():
         db.session.rollback()
         return jsonify({'error': 'Failed to unsubscribe'}), 500
 
-@app.route('/api/last-updated')
+@main_bp.route('/api/last-updated')
 def last_updated():
     """Get the last updated time for IPO data"""
     try:
@@ -125,7 +127,7 @@ def last_updated():
         logger.error(f"Error getting last updated time: {e}")
         return jsonify({'last_updated': 'Unknown'})
 
-@app.route('/api/vapid-public-key')
+@main_bp.route('/api/vapid-public-key')
 def vapid_public_key():
     """Get VAPID public key for push notifications"""
     public_key = os.environ.get("VAPID_PUBLIC_KEY", "")
@@ -133,7 +135,7 @@ def vapid_public_key():
         return jsonify({'error': 'VAPID public key not configured'}), 500
     return jsonify({'publicKey': public_key})
 
-@app.route('/admin/scrape', methods=['POST'])
+@main_bp.route('/admin/scrape', methods=['POST'])
 def manual_scrape():
     """Manually trigger scraping (admin function)"""
     try:
@@ -143,7 +145,7 @@ def manual_scrape():
         logger.error(f"Error triggering scrape: {e}")
         return jsonify({'error': 'Failed to trigger scraping'}), 500
 
-@app.route('/admin/test-notification', methods=['POST'])
+@main_bp.route('/admin/test-notification', methods=['POST'])
 def test_notification():
     """Send test notification (admin function)"""
     try:
@@ -162,7 +164,7 @@ def test_notification():
         logger.error(f"Error sending test notification: {e}")
         return jsonify({'error': 'Failed to send test notification'}), 500
 
-@app.route('/api/refresh-investorgain', methods=['POST'])
+@main_bp.route('/api/refresh-investorgain', methods=['POST'])
 def refresh_investorgain():
     """Trigger InvestorGain scraper to fetch latest data"""
     try:
@@ -193,7 +195,7 @@ def refresh_investorgain():
         logger.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({'error': f'Failed to refresh InvestorGain data: {str(e)}'}), 500
 
-@app.route('/api/force-refresh-investorgain', methods=['POST'])
+@main_bp.route('/api/force-refresh-investorgain', methods=['POST'])
 def force_refresh_investorgain():
     """Force refresh InvestorGain data (clears cache and fetches fresh data)"""
     try:
@@ -224,12 +226,12 @@ def force_refresh_investorgain():
         logger.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({'error': f'Failed to force refresh InvestorGain data: {str(e)}'}), 500
 
-@app.route('/manifest.json')
+@main_bp.route('/manifest.json')
 def manifest():
     """Serve PWA manifest from public directory"""
     return send_file('public/manifest.json')
 
-@app.route('/sw.js')
+@main_bp.route('/sw.js')
 def service_worker():
     """Serve service worker from public directory"""
     response = send_file('public/sw.js')
@@ -237,17 +239,17 @@ def service_worker():
     response.headers['Service-Worker-Allowed'] = '/'
     return response
 
-@app.route('/app.js')
+@main_bp.route('/app.js')
 def app_js():
     """Serve the main app JavaScript from public directory"""
     return send_file('public/app.js')
 
-@app.route('/icons/<path:filename>')
+@main_bp.route('/icons/<path:filename>')
 def icons(filename):
     """Serve PWA icons from public directory"""
     return send_from_directory('public/icons', filename)
 
-@app.errorhandler(404)
+@main_bp.app_errorhandler(404)
 def not_found(error):
     """Handle 404 errors"""
     try:
@@ -255,7 +257,7 @@ def not_found(error):
     except:
         return "<h1>Page not found</h1>", 404
 
-@app.errorhandler(500)
+@main_bp.app_errorhandler(500)
 def internal_error(error):
     """Handle 500 errors"""
     logger.error(f"Internal server error: {error}")
