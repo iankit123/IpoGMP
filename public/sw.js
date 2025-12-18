@@ -1,5 +1,5 @@
 // Service Worker for IPO GMP Tracker PWA
-const CACHE_NAME = 'ipo-tracker-v1'
+const CACHE_NAME = 'ipo-tracker-v2'
 const urlsToCache = [
   '/',
   '/index.html',

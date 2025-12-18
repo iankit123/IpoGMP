@@ -6,7 +6,22 @@ const SUPABASE_URL = 'https://jztpxmdiaqsafpzfcpib.supabase.co'
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp6dHB4bWRpYXFzYWZwemZjcGliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk1OTQ2MDgsImV4cCI6MjA3NTE3MDYwOH0.1tfhdtjS6B87p8I_0ntCdM4NH6MVn8E3Hmuw-2c_QZU'
 
 // Initialize Supabase client
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+// Use window object to avoid conflicts with cached/duplicate script loads
+if (typeof window.supabaseClient === 'undefined') {
+    if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
+        window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } else {
+        console.error('Supabase library not loaded. Please ensure the Supabase script is loaded before app.js');
+        // Create a dummy client to prevent errors
+        window.supabaseClient = {
+            from: () => ({
+                select: () => ({ eq: () => ({ not: () => ({ order: () => Promise.resolve({ data: [], error: null }) }) }) })
+            })
+        };
+    }
+}
+// Use window.supabaseClient as supabase throughout the code
+const supabase = window.supabaseClient;
 
 // Global variables
 let allIPOs = []
