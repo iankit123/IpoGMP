@@ -1,6 +1,12 @@
 // IPO GMP Tracker - Frontend JavaScript
 // This replaces your Flask frontend with Supabase integration
 
+// Prevent script from running twice
+if (window.ipoTrackerInitialized) {
+    console.warn('IPO Tracker script already initialized, skipping...');
+} else {
+    window.ipoTrackerInitialized = true;
+
 // Supabase configuration
 const SUPABASE_URL = 'https://jztpxmdiaqsafpzfcpib.supabase.co'
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp6dHB4bWRpYXFzYWZwemZjcGliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk1OTQ2MDgsImV4cCI6MjA3NTE3MDYwOH0.1tfhdtjS6B87p8I_0ntCdM4NH6MVn8E3Hmuw-2c_QZU'
@@ -20,8 +26,14 @@ if (typeof window.supabaseClient === 'undefined') {
         };
     }
 }
-// Use window.supabaseClient as supabase throughout the code
-const supabase = window.supabaseClient;
+// Create a local reference to supabase for use throughout the code
+// Use a function to get it dynamically to avoid redeclaration errors
+function getSupabase() {
+    return window.supabaseClient;
+}
+// For convenience, create a local variable that references the function
+// This avoids const/let redeclaration issues
+var supabase = getSupabase();
 
 // Global variables
 let allIPOs = []
@@ -701,7 +713,7 @@ async function refreshData(source = 'investorgain') {
     }
 }
 
-async function forceRefresh() {
+window.forceRefresh = async function forceRefresh() {
     try {
         console.log('⚡ Force refreshing: clearing cache and fetching latest data...')
         
@@ -756,7 +768,7 @@ async function forceRefresh() {
     }
 }
 
-async function testAlert() {
+window.testAlert = async function testAlert() {
     try {
         // Send test notification
         if ('Notification' in window && Notification.permission === 'granted') {
@@ -773,7 +785,7 @@ async function testAlert() {
     }
 }
 
-async function enableNotifications() {
+window.enableNotifications = async function enableNotifications() {
     try {
         if ('Notification' in window) {
             const permission = await Notification.requestPermission()
@@ -897,3 +909,5 @@ async function installPWA() {
 setInterval(() => {
     loadIPOData()
 }, 5 * 60 * 1000)
+
+} // End of window.ipoTrackerInitialized check
