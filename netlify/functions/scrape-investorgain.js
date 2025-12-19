@@ -10,7 +10,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 async function scrapeInvestorGain() {
     try {
         console.log('🌐 Starting InvestorGain API scraping...');
-        
+
         // --- Compute dynamic financial year ---
         const now = new Date();
         const year = now.getMonth() < 3 ? now.getFullYear() - 1 : now.getFullYear();
@@ -33,14 +33,14 @@ async function scrapeInvestorGain() {
 
         const response = await fetch(url, { headers });
         const status = response.status;
-        
+
         if (status !== 200) {
             const errorText = await response.text();
             console.error('❌ API returned non-200 status:', status);
             console.error('❌ Response body:', errorText);
             throw new Error(`API returned status ${status}: ${errorText}`);
         }
-        
+
         const json = await response.json();
 
         console.log('📡 API Response status:', status);
@@ -68,7 +68,7 @@ async function scrapeInvestorGain() {
         }
 
         console.log(`📊 Found ${rows.length} IPO records from API`);
-        
+
         if (rows.length === 0) {
             console.warn('⚠️ API returned empty array. Full response:', JSON.stringify(json).substring(0, 2000));
         }
@@ -91,7 +91,7 @@ async function scrapeInvestorGain() {
                     if (!cleaned || cleaned.trim() === '') {
                         return null;
                     }
-                    
+
                     // Convert "14-Oct" format to "YYYY-MM-DD" format for PostgreSQL DATE type
                     try {
                         // Parse "14-Oct" format
@@ -99,21 +99,21 @@ async function scrapeInvestorGain() {
                         if (match) {
                             const day = match[1].padStart(2, '0');
                             const monthName = match[2];
-                            
+
                             // Map month names to numbers
                             const monthMap = {
                                 'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
                                 'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
                                 'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
                             };
-                            
+
                             const month = monthMap[monthName];
                             if (month) {
                                 const currentYear = new Date().getFullYear();
                                 return `${currentYear}-${month}-${day}`;
                             }
                         }
-                        
+
                         // If parsing fails, return null to avoid database errors
                         console.warn(`⚠️ Could not parse date: ${cleaned}`);
                         return null;
@@ -122,7 +122,7 @@ async function scrapeInvestorGain() {
                         return null;
                     }
                 };
-                
+
                 // Helper to safely parse numeric values
                 const safeParseFloat = (value) => {
                     if (!value) return null;
@@ -131,7 +131,7 @@ async function scrapeInvestorGain() {
                     const num = parseFloat(cleaned.replace(/[₹,]/g, ''));
                     return isNaN(num) ? null : num;
                 };
-                
+
                 const safeParseInt = (value) => {
                     if (!value) return null;
                     const cleaned = clean(value);
@@ -139,12 +139,12 @@ async function scrapeInvestorGain() {
                     const num = parseInt(cleaned.replace(/[₹,]/g, ''));
                     return isNaN(num) ? null : num;
                 };
-                
+
                 // Parse GMP value and percentage
                 const gmpStr = clean(r["GMP"] || r["GMP Value"] || '');
                 let gmpValue = null;
                 let gmpPercentage = null;
-                
+
                 if (gmpStr && gmpStr !== '-' && gmpStr !== 'N/A') {
                     // Try to extract percentage from string like "₹10 (5%)"
                     const percentMatch = gmpStr.match(/\((\d+(?:\.\d+)?)%\)/);
@@ -154,7 +154,7 @@ async function scrapeInvestorGain() {
                     // Extract numeric value
                     gmpValue = safeParseFloat(gmpStr);
                 }
-                
+
                 const ipo = {
                     name: clean(r["~ipo_name"] || r["IPO Name"] || r["Name"] || ''),
                     gmp_value: gmpValue,
@@ -169,12 +169,12 @@ async function scrapeInvestorGain() {
                     data_source: 'investorgain',
                     is_active: true
                 };
-                
+
                 // Log first few records for debugging
                 if (index < 3) {
                     console.log(`📋 Sample IPO ${index + 1}:`, ipo);
                 }
-                
+
                 return ipo;
             } catch (error) {
                 console.error(`❌ Error parsing IPO row ${index}:`, error);
@@ -184,13 +184,13 @@ async function scrapeInvestorGain() {
         }).filter(ipo => ipo !== null && ipo.name && ipo.name.trim() !== '');
 
         console.log(`✅ Successfully parsed ${ipoData.length} IPOs from API (from ${rows.length} raw rows)`);
-        
+
         if (ipoData.length === 0 && rows.length > 0) {
             console.error('⚠️ All rows were filtered out! Sample raw row:', JSON.stringify(rows[0], null, 2));
         }
-        
+
         return ipoData;
-        
+
     } catch (error) {
         console.error('❌ Error scraping InvestorGain API:', error);
         console.error('❌ Error stack:', error.stack);
@@ -202,7 +202,7 @@ exports.handler = async (event, context) => {
     console.log('🚀 Netlify function started');
     console.log('📋 Event:', JSON.stringify(event, null, 2));
     console.log('📋 Context:', JSON.stringify(context, null, 2));
-    
+
     // Set CORS headers
     const headers = {
         'Access-Control-Allow-Origin': '*',
@@ -210,7 +210,7 @@ exports.handler = async (event, context) => {
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
         'Content-Type': 'application/json'
     };
-    
+
     // Handle preflight requests
     if (event.httpMethod === 'OPTIONS') {
         console.log('✅ Handling OPTIONS request');
@@ -220,21 +220,21 @@ exports.handler = async (event, context) => {
             body: '',
         };
     }
-    
+
     try {
         console.log('🔄 InvestorGain scraping function called');
         console.log('📡 HTTP Method:', event.httpMethod);
         console.log('📡 Headers:', event.headers);
-        
+
         // Check if Supabase client is properly initialized
         console.log('🔍 Supabase URL:', supabaseUrl);
         console.log('🔍 Supabase Key length:', supabaseKey ? supabaseKey.length : 'undefined');
-        
+
         // Scrape data from InvestorGain API
         console.log('🌐 Starting InvestorGain API scraping...');
         const ipoData = await scrapeInvestorGain();
         console.log(`📊 Scraped ${ipoData.length} IPOs from API`);
-        
+
         if (ipoData.length === 0) {
             console.log('⚠️ No IPO data found from API');
             return {
@@ -247,26 +247,67 @@ exports.handler = async (event, context) => {
                 }),
             };
         }
-        
+
+        // Fetch existing data to preserve values
+        console.log('📥 Fetching existing data for merging...');
+        const { data: existingRows, error: fetchError } = await supabase
+            .from('ipo_investorgain')
+            .select('*');
+
+        if (fetchError) {
+            console.error('❌ Error fetching existing data:', fetchError);
+        }
+
+        // Create map of existing data
+        const existingMap = new Map();
+        if (existingRows) {
+            existingRows.forEach(row => {
+                if (row.name) {
+                    existingMap.set(row.name.toLowerCase().trim(), row);
+                }
+            });
+        }
+
+        // Merge new data with existing data
+        const mergedData = ipoData.map(newIpo => {
+            const normalizedName = newIpo.name.toLowerCase().trim();
+            const existing = existingMap.get(normalizedName);
+
+            if (existing) {
+                // Preserve Price if missing in new data but present in existing
+                if (!newIpo.price && existing.price) {
+                    newIpo.price = existing.price;
+                    console.log(`Preserved price for ${newIpo.name}`);
+                }
+
+                // Preserve IPO Size if missing in new data but present in existing
+                if (!newIpo.ipo_size && existing.ipo_size) {
+                    newIpo.ipo_size = existing.ipo_size;
+                    console.log(`Preserved size for ${newIpo.name}`);
+                }
+            }
+            return newIpo;
+        });
+
         // Clear existing data
         console.log('🗑️ Clearing existing data...');
         const { error: deleteError } = await supabase
             .from('ipo_investorgain')
             .delete()
             .neq('id', 0);
-        
+
         if (deleteError) {
             console.error('❌ Error clearing existing data:', deleteError);
         } else {
             console.log('✅ Existing data cleared');
         }
-        
-        // Insert new data
-        console.log('💾 Inserting new data...');
+
+        // Insert new merged data
+        console.log('💾 Inserting new merged data...');
         const { data, error } = await supabase
             .from('ipo_investorgain')
-            .insert(ipoData);
-        
+            .insert(mergedData);
+
         if (error) {
             console.error('❌ Error inserting data:', error);
             return {
@@ -279,9 +320,9 @@ exports.handler = async (event, context) => {
                 }),
             };
         }
-        
+
         console.log(`✅ Successfully saved ${ipoData.length} IPOs to Supabase`);
-        
+
         return {
             statusCode: 200,
             headers,
@@ -291,13 +332,13 @@ exports.handler = async (event, context) => {
                 count: ipoData.length
             }),
         };
-        
+
     } catch (error) {
         console.error('❌ Function error:', error);
         console.error('❌ Error stack:', error.stack);
         console.error('❌ Error name:', error.name);
         console.error('❌ Error message:', error.message);
-        
+
         return {
             statusCode: 500,
             headers,
