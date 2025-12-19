@@ -61,8 +61,10 @@ def daily_scrape_job():
     """Job function for daily IPO data scraping"""
     try:
         logger.info("Starting daily scrape job...")
-        result = scrape_and_update()
-        logger.info(f"Daily scrape completed: {result}")
+        # Import here to avoid circular imports
+        from investorgain_scraper_selenium import scrape_investorgain_selenium
+        result = scrape_investorgain_selenium()
+        logger.info(f"Daily scrape completed: {result} records updated")
         
         # After scraping, check for notifications
         notification_check_job()

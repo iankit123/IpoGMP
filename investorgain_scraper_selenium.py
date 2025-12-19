@@ -68,7 +68,7 @@ class InvestorGainScraperSelenium:
                 logger.info("Table found")
             
             # Additional wait for JavaScript to fully render
-            time.sleep(3)
+            time.sleep(5)
             
             # Get the page source after JavaScript execution
             page_source = driver.page_source
@@ -130,6 +130,19 @@ class InvestorGainScraperSelenium:
             
             # Log all available keys for debugging
             available_labels = [cell.get('data-label', '') for cell in cells_with_labels]
+            
+            # Debug logging for specific IPO
+            is_target_ipo = False
+            for cell in cells_with_labels:
+                if "MARC Technocrats" in cell.get_text(strip=True):
+                    is_target_ipo = True
+                    logger.info(f"DEBUG: Found MARC Technocrats. Labels: {available_labels}")
+                    break
+            
+            if is_target_ipo:
+                for cell in cells_with_labels:
+                    logger.info(f"DEBUG CELL: Label='{cell.get('data-label')}', Text='{cell.get_text(strip=True)}'")
+
             logger.info(f"Row labels: {available_labels}")
 
             # Extract data from each cell based on its data-label
@@ -265,10 +278,34 @@ class InvestorGainScraperSelenium:
                 logger.info("No IPO data to save")
                 return 0
             
+            # Fetch existing data to preserve values if scraping fails
+            try:
+                existing_data_response = self.supabase.table('ipo_investorgain').select('*').execute()
+                existing_data = {item['name']: item for item in existing_data_response.data}
+                logger.info(f"Fetched {len(existing_data)} existing records for merging")
+            except Exception as e:
+                logger.warning(f"Failed to fetch existing data: {e}")
+                existing_data = {}
+
             # Convert date objects to strings for JSON serialization
             serializable_data = []
             for ipo in ipo_data:
                 serializable_ipo = ipo.copy()
+                
+                # Merge with existing data if new data is missing critical fields
+                if ipo['name'] in existing_data:
+                    existing = existing_data[ipo['name']]
+                    
+                    # If price is missing in new scrape but exists in DB, keep DB value
+                    if not serializable_ipo.get('price') and existing.get('price'):
+                        serializable_ipo['price'] = existing['price']
+                        logger.info(f"Preserved existing price for {ipo['name']}")
+                        
+                    # If size is missing in new scrape but exists in DB, keep DB value
+                    if not serializable_ipo.get('ipo_size') and existing.get('ipo_size'):
+                        serializable_ipo['ipo_size'] = existing['ipo_size']
+                        logger.info(f"Preserved existing size for {ipo['name']}")
+
                 if serializable_ipo.get('open_date'):
                     serializable_ipo['open_date'] = serializable_ipo['open_date'].isoformat()
                 if serializable_ipo.get('close_date'):
