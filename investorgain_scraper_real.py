@@ -553,10 +553,34 @@ class InvestorGainScraperReal:
                 logger.info("No IPO data to save")
                 return 0
             
+            # Fetch existing data to preserve values if scraping fails
+            try:
+                existing_data_response = self.supabase.table('ipo_investorgain').select('*').execute()
+                existing_data = {item['name']: item for item in existing_data_response.data}
+                logger.info(f"Fetched {len(existing_data)} existing records for merging")
+            except Exception as e:
+                logger.warning(f"Failed to fetch existing data: {e}")
+                existing_data = {}
+
             # Convert date objects to strings for JSON serialization
             serializable_data = []
             for ipo in ipo_data:
                 serializable_ipo = ipo.copy()
+                
+                # Merge with existing data if new data is missing critical fields
+                if ipo['name'] in existing_data:
+                    existing = existing_data[ipo['name']]
+                    
+                    # If price is missing in new scrape but exists in DB, keep DB value
+                    if not serializable_ipo.get('price') and existing.get('price'):
+                        serializable_ipo['price'] = existing['price']
+                        logger.info(f"Preserved existing price for {ipo['name']}")
+                        
+                    # If size is missing in new scrape but exists in DB, keep DB value
+                    if not serializable_ipo.get('ipo_size') and existing.get('ipo_size'):
+                        serializable_ipo['ipo_size'] = existing['ipo_size']
+                        logger.info(f"Preserved existing size for {ipo['name']}")
+
                 if serializable_ipo.get('open_date'):
                     serializable_ipo['open_date'] = serializable_ipo['open_date'].isoformat()
                 if serializable_ipo.get('close_date'):

@@ -13,7 +13,7 @@ const supabase = createClient(supabaseUrl, supabaseKey)
 async function scrapeInvestorGainData() {
   try {
     console.log('🔍 Fetching data from investorgain.com GMP page...')
-    
+
     const response = await fetch('https://www.investorgain.com/report/live-ipo-gmp/331/all/', {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -28,19 +28,19 @@ async function scrapeInvestorGainData() {
         'Cache-Control': 'max-age=0',
       }
     })
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch: ${response.status}`)
     }
-    
+
     const html = await response.text()
     console.log(`✅ Fetched HTML (${html.length} bytes)`)
-    
+
     // Since the data is loaded dynamically, we'll need to use a different approach
     // For now, let's try to extract what we can from the HTML
     const ipos = parseInvestorGainHTML(html)
     console.log(`📊 Parsed ${ipos.length} IPOs`)
-    
+
     return ipos
   } catch (error) {
     console.error('❌ Error scraping data:', error)
@@ -51,12 +51,12 @@ async function scrapeInvestorGainData() {
 // Parse HTML to extract IPO data from InvestorGain
 function parseInvestorGainHTML(html) {
   const ipos = []
-  
+
   // Since the actual table data is loaded dynamically, we'll extract what we can
   // Look for IPO names in the text content
   const ipoNames = [
     'LG Electronics IPO',
-    'Rubicon Research IPO', 
+    'Rubicon Research IPO',
     'Tata Capital IPO',
     'WeWork India IPO',
     'Advance Agrolife IPO',
@@ -68,7 +68,7 @@ function parseInvestorGainHTML(html) {
     'Canara Robeco IPO',
     'Canara HSBC Life IPO'
   ]
-  
+
   // For each IPO name found, create a basic entry
   // Note: This is a fallback since we can't get the actual GMP data without JavaScript execution
   for (const name of ipoNames) {
@@ -89,39 +89,80 @@ function parseInvestorGainHTML(html) {
       })
     }
   }
-  
+
   return ipos
 }
 
 // Update Supabase database
 async function updateSupabaseDatabase(ipos) {
   console.log('💾 Updating Supabase database...')
-  
+
   try {
+    // Fetch existing data to preserve values
+    console.log('📥 Fetching existing data for merging...')
+    const { data: existingRows, error: fetchError } = await supabase
+      .from('ipo_investorgain')
+      .select('*')
+
+    if (fetchError) {
+      console.error('❌ Error fetching existing data:', fetchError)
+    }
+
+    // Create map of existing data
+    const existingMap = new Map()
+    if (existingRows) {
+      existingRows.forEach(row => {
+        if (row.name) {
+          existingMap.set(row.name.toLowerCase().trim(), row)
+        }
+      })
+    }
+
+    // Merge new data with existing data
+    const mergedData = ipos.map(newIpo => {
+      const normalizedName = newIpo.name.toLowerCase().trim()
+      const existing = existingMap.get(normalizedName)
+
+      if (existing) {
+        // Preserve Price if missing in new data but present in existing
+        if (!newIpo.price && existing.price) {
+          newIpo.price = existing.price
+          console.log(`Preserved price for ${newIpo.name}`)
+        }
+
+        // Preserve IPO Size if missing in new data but present in existing
+        if (!newIpo.ipo_size && existing.ipo_size) {
+          newIpo.ipo_size = existing.ipo_size
+          console.log(`Preserved size for ${newIpo.name}`)
+        }
+      }
+      return newIpo
+    })
+
     // Clear existing InvestorGain data
     const { data: deleteData, error: deleteError } = await supabase
       .from('ipo_investorgain')
       .delete()
       .neq('id', 0)
-    
+
     if (deleteError) {
       throw deleteError
     }
-    
+
     console.log(`🗑️ Cleared ${deleteData?.length || 0} existing records`)
-    
-    // Insert new data
+
+    // Insert new merged data
     const { data: insertData, error: insertError } = await supabase
       .from('ipo_investorgain')
-      .insert(ipos)
-    
+      .insert(mergedData)
+
     if (insertError) {
       throw insertError
     }
-    
+
     console.log(`✅ Inserted ${insertData?.length || 0} new records`)
     return insertData?.length || 0
-    
+
   } catch (error) {
     console.error('❌ Error updating database:', error)
     throw error
@@ -133,22 +174,22 @@ async function main() {
   try {
     console.log('🚀 InvestorGain IPO Scraper Starting...')
     console.log('=====================================\n')
-    
+
     // Scrape data
     const ipos = await scrapeInvestorGainData()
-    
+
     if (ipos.length === 0) {
       console.log('⚠️ No IPO data found')
       return
     }
-    
+
     // Update database
     const updatedCount = await updateSupabaseDatabase(ipos)
-    
+
     console.log('\n🎉 Done! InvestorGain database updated.')
     console.log(`   📈 ${updatedCount} IPOs processed`)
     console.log('   Open your app to see the updated data!')
-    
+
   } catch (error) {
     console.error('❌ Scraper failed:', error)
     process.exit(1)
